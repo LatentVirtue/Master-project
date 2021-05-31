@@ -1,5 +1,5 @@
 ﻿
-namespace ImageProcessing_CPU
+namespace ImageProcessingCPU
 {
     partial class Form1
     {
