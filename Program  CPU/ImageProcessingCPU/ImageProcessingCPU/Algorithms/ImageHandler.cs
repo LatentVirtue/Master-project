@@ -3,29 +3,46 @@ using System.Collections.Generic;
 using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
+using ImageProcessor;
 
-namespace ImageProcessingCPU.Algorithms
+namespace ImageProcessingCPU
 {
     class ImageHandler
     {
-        Image original;
-        public Image temporary;
-        Image preview;
-        public bool Load()
+        static Image original;
+        static Image temporary;
+        static Image preview;
+        static ImageFactory factory = new ImageFactory();
+        public static bool Load()
         {
-            string filepath = "";
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Filter = "Image Files(*.BMP; *.JPG; *.PNG)| *.BMP; *.JPG; *.PNG | All files(*.*) | *.*";
                 dialog.RestoreDirectory = true;
                 if(dialog.ShowDialog() == DialogResult.OK)
                 {
-                    filepath = dialog.FileName;
-                    original = Bitmap.FromFile(filepath);
+                    original = Image.FromFile(dialog.FileName);
                     return true;
                 }
                 return false;
             }
+        }
+        public static Image Refresh()
+        {
+            if(original == null)
+            {
+                Load();
+                factory.Load(original);
+                factory.Resize(new Size(700, 400));
+                preview = factory.Image;
+            }
+            else if(temporary == null)
+            {
+                factory.Load(temporary);
+                factory.Resize(new Size(700, 400));
+                preview = factory.Image;
+            }
+            return preview;
         }
     }
 }

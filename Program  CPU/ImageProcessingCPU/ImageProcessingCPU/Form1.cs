@@ -17,9 +17,19 @@ namespace ImageProcessingCPU
             InitializeComponent();
         }
 
+        void SetPreview()
+        {
+            MainBox.Image = ImageHandler.Refresh();
+        }
+
         private void Form1_Load(object sender, EventArgs e)
         {
 
+        }
+
+        private void Button_LoadImage_Click(object sender, EventArgs e)
+        {
+            SetPreview();
         }
     }
 }
