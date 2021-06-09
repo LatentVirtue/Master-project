@@ -5,11 +5,15 @@ using System.Drawing;
 
 namespace ImageProcessingCPU.Algorithms
 {
-    class TestAlgo : AlgoInterface
+    class TestAlgo : IAlgoInterface
     {
         public Image Apply(Image x)
         {
-            return x;
+
+            Bitmap temp = new Bitmap(ImageHandler.Temporary);
+            //Bitmap r = temp.Clone(new Rectangle(0, 0, temp.Width, temp.Height), System.Drawing.Imaging.PixelFormat.Format16bppGrayScale);
+            
+            return temp;
         }
     }
 }

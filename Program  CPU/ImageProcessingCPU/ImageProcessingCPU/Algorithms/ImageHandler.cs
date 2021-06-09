@@ -4,6 +4,7 @@ using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 using ImageProcessor;
+using ImageProcessingCPU.Algorithms;
 
 namespace ImageProcessingCPU
 {
@@ -11,37 +12,102 @@ namespace ImageProcessingCPU
     {
         static Image original;
         static Image temporary;
-        static Image preview;
-        static ImageFactory factory = new ImageFactory();
-        public static bool Load()
+        public static Image Temporary
         {
-            using (OpenFileDialog dialog = new OpenFileDialog())
+            get
             {
-                dialog.Filter = "Image Files(*.BMP; *.JPG; *.PNG)| *.BMP; *.JPG; *.PNG | All files(*.*) | *.*";
-                dialog.RestoreDirectory = true;
-                if(dialog.ShowDialog() == DialogResult.OK)
-                {
-                    original = Image.FromFile(dialog.FileName);
-                    return true;
-                }
-                return false;
+                return temporary;
+            }
+            set
+            {
+                temporary = value;
             }
         }
-        public static Image Refresh()
+        static Image preview;
+        public static Image Preview
         {
-            if(original == null)
+            get
             {
-                Load();
-                factory.Load(original);
-                factory.Resize(new Size(700, 400));
-                preview = factory.Image;
+                return preview;
             }
-            else if(temporary == null)
+        }
+        public static ImageFactory factory = new ImageFactory();
+        public static bool Load()
+        {
+            using OpenFileDialog dialog = new OpenFileDialog();
+            dialog.Filter = "Image Files(*.BMP; *.JPG; *.PNG)| *.BMP; *.JPG; *.PNG | All files(*.*) | *.*";
+            dialog.RestoreDirectory = true;
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                original = Image.FromFile(dialog.FileName);
+                temporary = original;
+                factory.Load(temporary);
+                return true;
+            }
+            return false;
+        }
+        public static bool Save()
+        {
+            using SaveFileDialog dialog = new SaveFileDialog();
+            dialog.RestoreDirectory = true;
+            if(dialog.ShowDialog() == DialogResult.OK)
             {
                 factory.Load(temporary);
-                factory.Resize(new Size(700, 400));
-                preview = factory.Image;
+                factory.Save(dialog.FileName);
+                return true;
             }
+            return false;
+        }
+        public static void Refresh()
+        {
+            if (!Check())
+            {
+                return;
+            }
+            factory.Load(temporary);
+            factory.Resize(new Size(700, 400));
+            preview = factory.Image;
+        }
+        public static bool Check()
+        {
+            if (original == null)
+            {
+                if (Load())
+                {
+                    if (temporary == null)
+                    {
+                        temporary = original;
+                    }
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        public static Image Rotate90()
+        {
+            if (!Check())
+            {
+                return null;
+            }
+            TestAlgo x = new TestAlgo();
+            temporary = x.Apply(temporary);
+            Refresh();
+            return preview;
+        }
+
+        public static Image Canny_test()
+        {
+            if (!Check())
+            {
+                return null;
+            }
+            Canny x = new Canny();
+            temporary = x.Apply(temporary);
+            Refresh();
             return preview;
         }
     }

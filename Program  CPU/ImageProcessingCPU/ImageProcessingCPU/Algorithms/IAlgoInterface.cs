@@ -4,7 +4,7 @@ using System.Text;
 using System.Drawing;
 namespace ImageProcessingCPU.Algorithms
 {
-    interface AlgoInterface
+    interface IAlgoInterface
     {
         public Image Apply(Image x);
     }
