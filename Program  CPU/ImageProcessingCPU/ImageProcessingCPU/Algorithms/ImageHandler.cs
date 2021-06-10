@@ -49,8 +49,8 @@ namespace ImageProcessingCPU
         public static bool Save()
         {
             using SaveFileDialog dialog = new SaveFileDialog();
-            dialog.RestoreDirectory = true;
-            if(dialog.ShowDialog() == DialogResult.OK)
+            dialog.Filter = "Bitmap (*.BMP)| *.BMP";
+            if (dialog.ShowDialog() == DialogResult.OK)
             {
                 factory.Load(temporary);
                 factory.Save(dialog.FileName);
