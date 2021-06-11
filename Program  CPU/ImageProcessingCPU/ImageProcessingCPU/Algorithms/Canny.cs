@@ -187,6 +187,7 @@ namespace ImageProcessingCPU.Algorithms
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
         //also works only with greyscale. consider overloading for color channels
+        //nonMaxSuppression fails on diagonal 2. Needs rework or better checks.
         void NonMaxSuppression()
         {
             //inner image
@@ -230,7 +231,7 @@ namespace ImageProcessingCPU.Algorithms
                                 x[i, j] = gIntensity[i, j];
                             }
                             break;
-                        case 4:
+                        case 3:
                             //diagonal 2
                             if (gIntensity[i, j] < Math.Max(gIntensity[i + 1, j + 1], gIntensity[i - 1, j - 1]) * adj)
                             {
