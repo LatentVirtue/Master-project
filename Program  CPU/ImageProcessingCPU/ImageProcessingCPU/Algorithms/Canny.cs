@@ -29,7 +29,7 @@ namespace ImageProcessingCPU.Algorithms
         //1. Gaussian filter
         void GaussianFilter()
         {
-            //ImageHandler.factory.Load(list[1]);
+            ImageHandler.factory.Load(actual);
             ImageHandler.factory.GaussianBlur(5);
             actual = ImageHandler.factory.Image;
         }
@@ -187,7 +187,6 @@ namespace ImageProcessingCPU.Algorithms
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
         //also works only with greyscale. consider overloading for color channels
-        //nonMaxSuppression fails on diagonal 2. Needs rework or better checks.
         void NonMaxSuppression()
         {
             //inner image
@@ -258,6 +257,33 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     int intensity = (int)((gIntensity[i, j] / max) * 255);
                     res.SetPixel(j, i, Color.FromArgb(intensity, intensity, intensity));
+                }
+            }
+            ImageHandler.factory.Load(res);
+            return res;
+        }
+        public Image EdgeEffect(Image x)
+        {
+            int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+            int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+            actual = x;
+            GaussianFilter();
+            Bitmap temp = new Bitmap(actual);
+            int[,] Gx = Convolve(ref temp, ref sobelX);
+            int[,] Gy = Convolve(ref temp, ref sobelY);
+            ComputeGradient(ref Gx, ref Gy);
+            Bitmap res = new Bitmap(gIntensity.GetLength(1), gIntensity.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            double max = gIntensity.Cast<double>().Max();
+            for (int i = 0; i < gIntensity.GetLength(0); i++)
+            {
+                for (int j = 0; j < gIntensity.GetLength(1); j++)
+                {
+                    Color t = temp.GetPixel(j, i);
+                    double ins = (gIntensity[i, j] / max) * 3;
+                    int red = Math.Clamp((int)(t.R * ins), 0, 255);
+                    int green = Math.Clamp((int)(t.G * ins), 0, 255);
+                    int blue = Math.Clamp((int)(t.B * ins), 0, 255);
+                    res.SetPixel(j, i, Color.FromArgb(red, green, blue));
                 }
             }
             return res;

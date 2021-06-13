@@ -110,5 +110,16 @@ namespace ImageProcessingCPU
             Refresh();
             return preview;
         }
+        public static Image Edge_effect()
+        {
+            if (!Check())
+            {
+                return null;
+            }
+            Canny x = new Canny();
+            temporary = x.EdgeEffect(temporary);
+            Refresh();
+            return preview;
+        }
     }
 }

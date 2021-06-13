@@ -36,8 +36,8 @@ namespace ImageProcessingCPU
 
         private void button1_Click(object sender, EventArgs e)
         {
-            MainBox.Image = ImageHandler.Rotate90();
-            MessageBox.Show(ImageHandler.Temporary.PixelFormat.ToString(), "PixelFormat: ", MessageBoxButtons.OK);
+            MainBox.Image = ImageHandler.Edge_effect();
+            //MessageBox.Show(ImageHandler.Temporary.PixelFormat.ToString(), "PixelFormat: ", MessageBoxButtons.OK);
         }
 
         private void Button_Canny_Click(object sender, EventArgs e)
