@@ -13,9 +13,10 @@ namespace ImageProcessingCPU.Algorithms
     class Canny : IAlgoInterface
     {
         Image actual;
-        int[,] angle;
+        double[,] angle;
         double[,] gIntensity;
-        double adj = 1;
+        double lowerT = 0.1;
+        double upperT = 0.3;
         public Canny()
         {
 
@@ -45,9 +46,6 @@ namespace ImageProcessingCPU.Algorithms
             int[,] Gy = Convolve(ref temp, ref sobelY);
             //computing gradient intensity via G = sqrt(Gx^2+Gy^2)
             ComputeGradient(ref Gx, ref Gy);
-
-            //computing gradient angle - needed for tresholding
-            GradientDirection(ref Gx, ref Gy);
             //non-max suppresion
             NonMaxSuppression();
             actual = ReconstructFromGradient();
@@ -58,94 +56,13 @@ namespace ImageProcessingCPU.Algorithms
         void ComputeGradient(ref int[,] Gx, ref int[,] Gy)
         {
             gIntensity = new double[Gx.GetLength(0), Gx.GetLength(1)];
+            angle = new double[Gx.GetLength(0), Gx.GetLength(1)];
             for (int i = 0; i < gIntensity.GetLength(0); i++)
             {
                 for (int j = 0; j < gIntensity.GetLength(1); j++)
                 {
                     gIntensity[i, j] = Math.Sqrt(Gx[i, j] * Gx[i, j] + Gy[i, j] * Gy[i, j]);
-                }
-            }
-        }
-        //this assumes R=G=B, or can work for a specified channel, should write an overload
-        void GradientDirection(ref int[,] Gx, ref int[,] Gy)
-        {
-            angle = new int[Gx.GetLength(0), Gx.GetLength(1)];
-            for (int i = 0; i < angle.GetLength(0); i++)
-            {
-                for (int j = 0; j < angle.GetLength(1); j++)
-                {
-                    //calculating angle as arctan(Gx,Gy) and converting to degrees by
-                    double rad = (Math.Atan2(Gx[i, j], Gy[i, j]) * (180 / Math.PI)) % 180;
-                    int direction;
-                    //vertical |
-                    //diagonal 1 /
-                    //horizontal --
-                    //diagonal 2 \
-                    if (rad > 0)
-                    {
-                        if (rad < 22.5)
-                        {
-                            direction = 0;
-                        }
-                        else
-                        {
-                            if (rad < 67.5)
-                            {
-                                direction = 1;
-                            }
-                            else
-                            {
-                                if (rad < 112.5)
-                                {
-                                    direction = 2;
-                                }
-                                else
-                                {
-                                    if (rad < 157.5)
-                                    {
-                                        direction = 3;
-                                    }
-                                    else
-                                    {
-                                        direction = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (rad > -22.5)
-                        {
-                            direction = 0;
-                        }
-                        else
-                        {
-                            if (rad > -67.5)
-                            {
-                                direction = 3;
-                            }
-                            else
-                            {
-                                if (rad > -112.5)
-                                {
-                                    direction = 2;
-                                }
-                                else
-                                {
-                                    if (rad > -157.5)
-                                    {
-                                        direction = 1;
-                                    }
-                                    else
-                                    {
-                                        direction = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    angle[i, j] = direction;
+                    angle[i, j] = (Math.Atan2(Gx[i, j], Gy[i, j]) * (180 / Math.PI)) % 180;
                 }
             }
         }
@@ -195,52 +112,116 @@ namespace ImageProcessingCPU.Algorithms
             {
                 for (int j = 1; j < angle.GetLength(1) - 1; j++)
                 {
-                    switch (angle[i, j])
+                    //linear interpolation
+                    if (angle[i, j] > -45)
                     {
-                        case 0:
-                            //vertical angle = horizontal edge
-                            if (gIntensity[i, j] < Math.Max(gIntensity[i + 1, j], gIntensity[i - 1, j]) * adj)
+                        if(angle[i,j]> 0)
+                        {
+                            if (angle[i, j] > 45)
                             {
-                                x[i, j] = 0;
+                                if (angle[i, j] > 90)
+                                {
+                                    if (angle[i, j] > 135)
+                                    {
+                                        //135 to 180 1
+                                        double l = (angle[i, j] - 135) / 45;
+                                        double r = 1 - l;
+                                        double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i - 1, j] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i + 1, j] * r);
+                                        if (gIntensity[i, j] >= a)
+                                        {
+                                            x[i,j] = gIntensity[i, j];
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //90 to 135 1
+                                        //main diagonal
+                                        double l = (angle[i, j] - 90) / 45;
+                                        double r = 1 - l;
+                                        double a = Math.Max(gIntensity[i, j + 1] * l + gIntensity[i + 1, j + 1] * r, gIntensity[i, j - 1] * l + gIntensity[i - 1, j - 1] * r);
+                                        if (gIntensity[i, j] >= a)
+                                        {
+                                            x[i, j] = gIntensity[i, j];
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    //45 to 90 1
+                                    //side diagonal
+                                    double l = (angle[i, j] - 45) / 45;
+                                    double r = 1 - l;
+                                    double a = Math.Max(gIntensity[i - 1, j + 1] * l + gIntensity[i, j + 1] * r, gIntensity[i + 1, j - 1] * l + gIntensity[i, j - 1] * r);
+                                    if (gIntensity[i, j] >= a)
+                                    {
+                                        x[i, j] = gIntensity[i, j];
+                                    }
+                                }
                             }
                             else
                             {
+                                //0 to 45 1
+                                //vertical right
+                                double l = angle[i, j] / 45;
+                                double r = 1 - l;
+                                double a = Math.Max(gIntensity[i - 1, j] * l + gIntensity[i - 1, j + 1] * r, gIntensity[i + 1, j] * l + gIntensity[i + 1, j - 1] * r);
+                                if (gIntensity[i, j] >= a)
+                                {
+                                    x[i, j] = gIntensity[i, j];
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //-45 to 0 1
+                            //vertical left
+                            double l = (-45 - (angle[i, j]))/-45;
+                            double r = 1 - l;
+                            double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i - 1, j] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i + 1, j] * r);
+                            if (gIntensity[i, j] >= a)
+                            {
                                 x[i, j] = gIntensity[i, j];
                             }
-                            break;
-                        case 1:
-                            //diagonal 1
-                            if (gIntensity[i, j] < Math.Max(gIntensity[i - 1, j + 1], gIntensity[i + 1, j - 1]) * adj)
+                        }
+                    }
+                    else
+                    {
+                        if (angle[i, j] < -90)
+                        {
+                            if (angle[i, j] < -135)
                             {
-                                x[i, j] = 0;
+                                //-180 to -135 1
+                                double l = (angle[i, j] + 135) / -45;
+                                double r = 1 - l;
+                                double a = Math.Max(gIntensity[i - 1, j] * r + gIntensity[i - 1, j + 1] * l, gIntensity[i + 1, j] * r + gIntensity[i + 1, j - 1] * l);
+                                if (gIntensity[i, j] >= a)
+                                {
+                                    x[i, j] = gIntensity[i, j];
+                                }
                             }
                             else
                             {
-                                x[i, j] = gIntensity[i, j];
+                                //-135 to -90 1
+                                double l = (angle[i, j] + 90) / -45;
+                                double r = 1 - l;
+                                double a = Math.Max(gIntensity[i, j + 1] * l + gIntensity[i - 1, j + 1] * r, gIntensity[i, j - 1] * l + gIntensity[i + 1, j - 1] * r);
+                                if (gIntensity[i, j] >= a)
+                                {
+                                    x[i, j] = gIntensity[i, j];
+                                }
                             }
-                            break;
-                        case 2:
-                            //horizontal 
-                            if (gIntensity[i, j] < Math.Max(gIntensity[i, j + 1], gIntensity[i, j - 1]) * adj)
-                            {
-                                x[i, j] = 0;
-                            }
-                            else
-                            {
-                                x[i, j] = gIntensity[i, j];
-                            }
-                            break;
-                        case 3:
-                            //diagonal 2
-                            if (gIntensity[i, j] < Math.Max(gIntensity[i + 1, j + 1], gIntensity[i - 1, j - 1]) * adj)
-                            {
-                                x[i, j] = 0;
-                            }
-                            else
+                        }
+                        else
+                        {
+                            //-90 to -45
+                            double l = (angle[i, j]+45) / -45;
+                            double r = 1 - l;
+                            double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i, j - 1] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i, j + 1] * r);
+                            if (gIntensity[i, j] >= a)
                             {
                                 x[i, j] = gIntensity[i, j];
                             }
-                            break;
+                        }
                     }
                 }
             }
@@ -289,6 +270,19 @@ namespace ImageProcessingCPU.Algorithms
             return res;
         }
         //4. Apply double treshold to determine potential edges
+        void DoubleTreshold()
+        {
+            for(int i = 0; i < gIntensity.GetLength(0); i++)
+            {
+                for(int j = 0; j < gIntensity.GetLength(1); j++)
+                {
+                    if (gIntensity[i, j] < lowerT)
+                    {
+                        gIntensity[i, j] = 0;
+                    }
+                }
+            }
+        }
         //5. Track edge by Hysteresis. Finalize detection by suppressing all the other edges that are weak and not connected to strong edges
 
 
