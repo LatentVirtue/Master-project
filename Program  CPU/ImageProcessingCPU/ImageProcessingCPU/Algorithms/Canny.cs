@@ -10,11 +10,41 @@ using System.Linq;
 
 namespace ImageProcessingCPU.Algorithms
 {
+    class HelperObject
+    {
+        public int label;
+        public bool hasStrong;
+        public List<Point[]> body;
+        public bool upIntersect;
+        public bool downIntersect;
+        //this will be the magical BFS
+        public HelperObject(ref byte[,] x, int i, int j)
+        {
+
+        }
+        //this will set all pixels within the object to 0 and visited
+        public void MutuallyAssuredDestruction(ref byte[,] x)
+        {
+            //kill everyone else
+            foreach (Point[] p in body)
+            {
+                foreach (Point q in p)
+                {
+                    x[q.X, q.Y] = 10;
+                }
+            }
+            //kill self
+            body = null;
+        }
+    }
     class Canny : IAlgoInterface
     {
+        //optimize these for memory
         Image actual;
         double[,] angle;
         double[,] gIntensity;
+        byte[,] label;
+        double max;
         double lowerT = 0.1;
         double upperT = 0.3;
         public Canny()
@@ -46,9 +76,6 @@ namespace ImageProcessingCPU.Algorithms
             int[,] Gy = Convolve(ref temp, ref sobelY);
             //computing gradient intensity via G = sqrt(Gx^2+Gy^2)
             ComputeGradient(ref Gx, ref Gy);
-            //non-max suppresion
-            NonMaxSuppression();
-            actual = ReconstructFromGradient();
             //actual = temp;
             ImageHandler.factory.Load(actual);
         }
@@ -65,6 +92,7 @@ namespace ImageProcessingCPU.Algorithms
                     angle[i, j] = (Math.Atan2(Gx[i, j], Gy[i, j]) * (180 / Math.PI)) % 180;
                 }
             }
+            max = gIntensity.Cast<double>().Max();
         }
         //also add an overload for color channels
         int[,] Convolve(ref Bitmap target, ref int[,] filter)
@@ -115,7 +143,7 @@ namespace ImageProcessingCPU.Algorithms
                     //linear interpolation
                     if (angle[i, j] > -45)
                     {
-                        if(angle[i,j]> 0)
+                        if (angle[i, j] > 0)
                         {
                             if (angle[i, j] > 45)
                             {
@@ -129,7 +157,7 @@ namespace ImageProcessingCPU.Algorithms
                                         double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i - 1, j] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i + 1, j] * r);
                                         if (gIntensity[i, j] >= a)
                                         {
-                                            x[i,j] = gIntensity[i, j];
+                                            x[i, j] = gIntensity[i, j];
                                         }
                                     }
                                     else
@@ -175,7 +203,7 @@ namespace ImageProcessingCPU.Algorithms
                         {
                             //-45 to 0 1
                             //vertical left
-                            double l = (-45 - (angle[i, j]))/-45;
+                            double l = (-45 - (angle[i, j])) / -45;
                             double r = 1 - l;
                             double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i - 1, j] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i + 1, j] * r);
                             if (gIntensity[i, j] >= a)
@@ -214,7 +242,7 @@ namespace ImageProcessingCPU.Algorithms
                         else
                         {
                             //-90 to -45
-                            double l = (angle[i, j]+45) / -45;
+                            double l = (angle[i, j] + 45) / -45;
                             double r = 1 - l;
                             double a = Math.Max(gIntensity[i - 1, j - 1] * l + gIntensity[i, j - 1] * r, gIntensity[i + 1, j + 1] * l + gIntensity[i, j + 1] * r);
                             if (gIntensity[i, j] >= a)
@@ -229,19 +257,41 @@ namespace ImageProcessingCPU.Algorithms
         }
         Bitmap ReconstructFromGradient()
         {
-            Bitmap res = new Bitmap(gIntensity.GetLength(1), gIntensity.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            //divide gradient by max value, then multiply by 255
-            double max = gIntensity.Cast<double>().Max();
-            for (int i = 0; i < gIntensity.GetLength(0); i++)
+            if (label != null)
             {
-                for (int j = 0; j < gIntensity.GetLength(1); j++)
+                Bitmap res = new Bitmap(label.GetLength(1), label.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                for (int i = 0; i < label.GetLength(0); i++)
                 {
-                    int intensity = (int)((gIntensity[i, j] / max) * 255);
-                    res.SetPixel(j, i, Color.FromArgb(intensity, intensity, intensity));
+                    for (int j = 0; j < label.GetLength(1); j++)
+                    {
+                        if (label[i, j] % 10 > 0)
+                        {
+                            res.SetPixel(j, i, Color.White);
+                        }
+                        else
+                        {
+                            res.SetPixel(j, i, Color.Black);
+                        }
+                    }
                 }
+                return res;
             }
-            ImageHandler.factory.Load(res);
-            return res;
+            else
+            {
+                Bitmap res = new Bitmap(gIntensity.GetLength(1), gIntensity.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                //divide gradient by max value, then multiply by 255
+                //max = gIntensity.Cast<double>().Max();
+                for (int i = 0; i < gIntensity.GetLength(0); i++)
+                {
+                    for (int j = 0; j < gIntensity.GetLength(1); j++)
+                    {
+                        int intensity = (int)((gIntensity[i, j] / max) * 255);
+                        res.SetPixel(j, i, Color.FromArgb(intensity, intensity, intensity));
+                    }
+                }
+                ImageHandler.factory.Load(res);
+                return res;
+            }
         }
         public Image EdgeEffect(Image x)
         {
@@ -270,21 +320,69 @@ namespace ImageProcessingCPU.Algorithms
             return res;
         }
         //4. Apply double treshold to determine potential edges
-        void DoubleTreshold()
+        void DoubleThreshold()
         {
-            for(int i = 0; i < gIntensity.GetLength(0); i++)
+            label = new byte[gIntensity.GetLength(0), gIntensity.GetLength(1)];
+            //max = gIntensity.Cast<double>().Max();
+            for (int i = 0; i < gIntensity.GetLength(0); i++)
             {
-                for(int j = 0; j < gIntensity.GetLength(1); j++)
+                for (int j = 0; j < gIntensity.GetLength(1); j++)
                 {
-                    if (gIntensity[i, j] < lowerT)
+                    if (gIntensity[i, j] < lowerT*max)
                     {
+                        //weak edges, which are disgarded
                         gIntensity[i, j] = 0;
+                        label[i, j] = 0;
+                    }
+                    else if (gIntensity[i, j] < upperT*max)
+                    {
+                        //edges for which we use hysteresis
+                        label[i, j] = 1;
+                    }
+                    else
+                    {
+                        //strong edges, which are always kept
+                        label[i, j] = 2;
                     }
                 }
             }
         }
         //5. Track edge by Hysteresis. Finalize detection by suppressing all the other edges that are weak and not connected to strong edges
 
+        //idea: split image into horizontal bars for parallelization
+        //for each bar, go through the pixels
+        //if they aren't 0, and aren't 'occupied', bfs to find all connected pixels(in the current strip), and note if they touch the upper or lower border
+        //then, for all objects that contain strong pixels, preserve them, for those than dont, if they touch the border, and through it an object which contains a strong pixel, preserve them
+        //delete all the rest
+        //boom, parallelized
+        //in CPU implementation, the objects can immediately be preserved or destroyed, as there are no bars
+        void Hysteresis()
+        {
+            for (int i = 0; i < label.GetLength(0); i++)
+            {
+                for (int j = 0; j < label.GetLength(1); j++)
+                {
+                    if (label[i, j] < 10)
+                    {
+                        //if label[i,j] is >=10, it means it was visited
+                        if (label[i, j] == 0)
+                        {
+                            label[i, j] += 10;
+                            continue;
+                        }
+                        else
+                        {
+                            //constructor of h is doing BFS
+                            HelperObject h = new HelperObject(ref label, i, j);
+                            if (!h.hasStrong)
+                            {
+                                h.MutuallyAssuredDestruction(ref label);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         //final - apply 
         public Image Apply(Image x)
@@ -297,6 +395,10 @@ namespace ImageProcessingCPU.Algorithms
             ToGrayscale();
             GaussianFilter();
             Gradient();
+            NonMaxSuppression();
+            DoubleThreshold();
+            Hysteresis();
+            actual = ReconstructFromGradient();
             return actual;
         }
     }
