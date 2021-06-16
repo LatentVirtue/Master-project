@@ -12,26 +12,55 @@ namespace ImageProcessingCPU.Algorithms
 {
     class HelperObject
     {
-        public int label;
-        public bool hasStrong;
-        public List<Point[]> body;
-        public bool upIntersect;
-        public bool downIntersect;
+        public int label; //in case i need it for conected component labeling or hoshen-kopelman algo
+        public bool hasStrong = false;
+        public List<Point> body = new List<Point>();
+        public bool upIntersect = false;
+        public bool downIntersect = false;
         //this will be the magical BFS
+        //need to implement levels
         public HelperObject(ref byte[,] x, int i, int j)
         {
-
+            body.Add(new Point(i, j));
+            Queue<Point> q = new Queue<Point>();
+            q.Enqueue(new Point(i, j));
+            x[i, j] += 10;
+            while (q.Count > 0)
+            {
+                Point t = q.Dequeue();
+                for(int ii = Math.Max(t.X-1,0); ii<Math.Min(t.X+2,x.GetLength(0)); ii++)
+                {
+                    for(int jj = Math.Max(t.Y-1,0); jj<Math.Min(t.Y+2,x.GetLength(1)); jj++)
+                    {
+                        if (x[ii, jj] < 10)
+                        {
+                            if (x[ii, jj] > 0)
+                            {
+                                Point n = new Point(ii, jj);
+                                q.Enqueue(n);
+                                body.Add(n);
+                                if (!hasStrong && x[ii, jj] == 2)
+                                {
+                                    hasStrong = true;
+                                }
+                            }
+                            x[ii, jj] += 10;
+                        }
+                    }
+                }
+            }
+            //magical LINQ sorter for fixing the fact that I changed body from List<Point[]> to List<Point> because I'm out of time (mora trcim sa skoletom u nemir)
+            //dont ask, it works
+            //body = body.OrderByDescending(p => p.X).ThenBy(p => p.Y).ToList();
         }
         //this will set all pixels within the object to 0 and visited
         public void MutuallyAssuredDestruction(ref byte[,] x)
         {
             //kill everyone else
-            foreach (Point[] p in body)
+            //edit for point lists
+            foreach (Point p in body)
             {
-                foreach (Point q in p)
-                {
-                    x[q.X, q.Y] = 10;
-                }
+                x[p.X, p.Y] = 10;
             }
             //kill self
             body = null;
@@ -132,6 +161,7 @@ namespace ImageProcessingCPU.Algorithms
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
         //also works only with greyscale. consider overloading for color channels
+        //adjust this, it eats too many pixels for no reason
         void NonMaxSuppression()
         {
             //inner image
@@ -356,7 +386,7 @@ namespace ImageProcessingCPU.Algorithms
         //delete all the rest
         //boom, parallelized
         //in CPU implementation, the objects can immediately be preserved or destroyed, as there are no bars
-        void Hysteresis()
+        void Hysteresis() //definitely not it
         {
             for (int i = 0; i < label.GetLength(0); i++)
             {
@@ -368,13 +398,12 @@ namespace ImageProcessingCPU.Algorithms
                         if (label[i, j] == 0)
                         {
                             label[i, j] += 10;
-                            continue;
                         }
                         else
                         {
                             //constructor of h is doing BFS
                             HelperObject h = new HelperObject(ref label, i, j);
-                            if (!h.hasStrong)
+                            if (!h.hasStrong || h.body.Count ==1)
                             {
                                 h.MutuallyAssuredDestruction(ref label);
                             }
