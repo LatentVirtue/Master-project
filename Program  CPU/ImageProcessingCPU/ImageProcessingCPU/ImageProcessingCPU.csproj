@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ILGPU" Version="0.10.1" />
     <PackageReference Include="ImageProcessor" Version="2.9.1" />
   </ItemGroup>
 

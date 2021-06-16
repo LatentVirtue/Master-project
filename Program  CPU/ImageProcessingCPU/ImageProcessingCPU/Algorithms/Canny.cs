@@ -7,6 +7,8 @@ using ImageProcessor.Imaging.Filters.Photo;
 using ImageProcessor.Imaging;
 using ImageProcessingCPU;
 using System.Linq;
+using ILGPU;
+using ILGPU.Runtime;
 
 namespace ImageProcessingCPU.Algorithms
 {
@@ -28,9 +30,9 @@ namespace ImageProcessingCPU.Algorithms
             while (q.Count > 0)
             {
                 Point t = q.Dequeue();
-                for(int ii = Math.Max(t.X-1,0); ii<Math.Min(t.X+2,x.GetLength(0)); ii++)
+                for (int ii = Math.Max(t.X - 1, 0); ii < Math.Min(t.X + 2, x.GetLength(0)); ii++)
                 {
-                    for(int jj = Math.Max(t.Y-1,0); jj<Math.Min(t.Y+2,x.GetLength(1)); jj++)
+                    for (int jj = Math.Max(t.Y - 1, 0); jj < Math.Min(t.Y + 2, x.GetLength(1)); jj++)
                     {
                         if (x[ii, jj] < 10)
                         {
@@ -68,6 +70,21 @@ namespace ImageProcessingCPU.Algorithms
     }
     class Canny : IAlgoInterface
     {
+        //Sobel operator kernels
+        int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+        int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+        //Prewitt
+        int[,] prewittX = { { 1, 0, -1 }, { 1, 0, -1 }, { 1, 0, -1 } };
+        int[,] prewittY = { { 1, 1, 1 }, { 0, 0, 0 }, { -1, -1, -1 } };
+        //Roberts
+        int[,] robertsX = { { 1, 0 }, { 0, -1 } };
+        int[,] robertsY = { { 0, 1 }, { -1, 0 } };
+        //Scharr
+        int[,] scharrX = { { 3, 0, -3 }, { 10, 0, -10 }, { 3, 0, -3 } };
+        int[,] scharrY = { { 3, 10, 3 }, { 0, 0, 0 }, { -3, -10, -3 } };
+        //actual
+        int[,] opX;
+        int[,] opY;
         //optimize these for memory
         Image actual;
         double[,] angle;
@@ -76,9 +93,27 @@ namespace ImageProcessingCPU.Algorithms
         double max;
         double lowerT = 0.1;
         double upperT = 0.3;
-        public Canny()
+        public Canny(int kOperator)
         {
-
+            switch (kOperator)
+            {
+                case 0:
+                    opX = sobelX;
+                    opY = sobelY;
+                    break;
+                case 1:
+                    opX = prewittX;
+                    opY = prewittY;
+                    break;
+                case 2:
+                    opX = robertsX;
+                    opY = robertsY;
+                    break;
+                case 3:
+                    opX = scharrX;
+                    opY = scharrY;
+                    break;
+            }
         }
         void ToGrayscale()
         {
@@ -96,13 +131,10 @@ namespace ImageProcessingCPU.Algorithms
         //2. Intensity gradient
         void Gradient()
         {
-            //Sobel operator kernels
-            int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
-            int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
             //applying kernels
             Bitmap temp = new Bitmap(actual);
-            int[,] Gx = Convolve(ref temp, ref sobelX);
-            int[,] Gy = Convolve(ref temp, ref sobelY);
+            int[,] Gx = Convolve(ref temp, ref opX);
+            int[,] Gy = Convolve(ref temp, ref opY);
             //computing gradient intensity via G = sqrt(Gx^2+Gy^2)
             ComputeGradient(ref Gx, ref Gy);
             //actual = temp;
@@ -157,6 +189,10 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             return ret;
+        }
+        void ConKernel(Index2 index, ArrayView<int> dataView, ref int[,] filter, ref Bitmap target)
+        {
+
         }
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
@@ -358,13 +394,13 @@ namespace ImageProcessingCPU.Algorithms
             {
                 for (int j = 0; j < gIntensity.GetLength(1); j++)
                 {
-                    if (gIntensity[i, j] < lowerT*max)
+                    if (gIntensity[i, j] < lowerT * max)
                     {
                         //weak edges, which are disgarded
                         gIntensity[i, j] = 0;
                         label[i, j] = 0;
                     }
-                    else if (gIntensity[i, j] < upperT*max)
+                    else if (gIntensity[i, j] < upperT * max)
                     {
                         //edges for which we use hysteresis
                         label[i, j] = 1;
@@ -403,7 +439,7 @@ namespace ImageProcessingCPU.Algorithms
                         {
                             //constructor of h is doing BFS
                             HelperObject h = new HelperObject(ref label, i, j);
-                            if (!h.hasStrong || h.body.Count ==1)
+                            if (!h.hasStrong || h.body.Count == 1)
                             {
                                 h.MutuallyAssuredDestruction(ref label);
                             }

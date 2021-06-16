@@ -12,6 +12,7 @@ namespace ImageProcessingCPU
 {
     public partial class Form1 : Form
     {
+        int canny_choice = 0;
         public Form1()
         {
             InitializeComponent();
@@ -36,13 +37,13 @@ namespace ImageProcessingCPU
 
         private void button1_Click(object sender, EventArgs e)
         {
-            MainBox.Image = ImageHandler.Edge_effect();
+            MainBox.Image = ImageHandler.Edge_effect(canny_choice);
             //MessageBox.Show(ImageHandler.Temporary.PixelFormat.ToString(), "PixelFormat: ", MessageBoxButtons.OK);
         }
 
         private void Button_Canny_Click(object sender, EventArgs e)
         {
-            MainBox.Image = ImageHandler.Canny_test();
+            MainBox.Image = ImageHandler.Canny_test(canny_choice);
         }
 
         private void Button_Save_Click(object sender, EventArgs e)
@@ -51,6 +52,11 @@ namespace ImageProcessingCPU
             {
                 MessageBox.Show("Image not saved.", "Mehehe", MessageBoxButtons.OK);
             }
+        }
+
+        private void canny_choice1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            canny_choice = canny_choice1.SelectedIndex;
         }
     }
 }

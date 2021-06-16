@@ -99,24 +99,24 @@ namespace ImageProcessingCPU
             return preview;
         }
 
-        public static Image Canny_test()
+        public static Image Canny_test(int c)
         {
             if (!Check())
             {
                 return null;
             }
-            Canny x = new Canny();
+            Canny x = new Canny(c);
             temporary = x.Apply(temporary);
             Refresh();
             return preview;
         }
-        public static Image Edge_effect()
+        public static Image Edge_effect(int c)
         {
             if (!Check())
             {
                 return null;
             }
-            Canny x = new Canny();
+            Canny x = new Canny(c);
             temporary = x.EdgeEffect(temporary);
             Refresh();
             return preview;

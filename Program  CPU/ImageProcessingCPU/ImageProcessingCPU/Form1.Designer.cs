@@ -35,6 +35,7 @@ namespace ImageProcessingCPU
             this.button1 = new System.Windows.Forms.Button();
             this.Button_Canny = new System.Windows.Forms.Button();
             this.Button_Save = new System.Windows.Forms.Button();
+            this.canny_choice1 = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).BeginInit();
             this.SuspendLayout();
             // 
@@ -93,11 +94,26 @@ namespace ImageProcessingCPU
             this.Button_Save.UseVisualStyleBackColor = true;
             this.Button_Save.Click += new System.EventHandler(this.Button_Save_Click);
             // 
+            // canny_choice1
+            // 
+            this.canny_choice1.FormattingEnabled = true;
+            this.canny_choice1.Items.AddRange(new object[] {
+            "Sobel",
+            "Prewitt",
+            "Roberts",
+            "Scharr"});
+            this.canny_choice1.Location = new System.Drawing.Point(718, 72);
+            this.canny_choice1.Name = "canny_choice1";
+            this.canny_choice1.Size = new System.Drawing.Size(75, 23);
+            this.canny_choice1.TabIndex = 6;
+            this.canny_choice1.SelectedIndexChanged += new System.EventHandler(this.canny_choice1_SelectedIndexChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(799, 450);
+            this.Controls.Add(this.canny_choice1);
             this.Controls.Add(this.Button_Save);
             this.Controls.Add(this.Button_Canny);
             this.Controls.Add(this.button1);
@@ -120,6 +136,7 @@ namespace ImageProcessingCPU
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button Button_Canny;
         private System.Windows.Forms.Button Button_Save;
+        private System.Windows.Forms.ComboBox canny_choice1;
     }
 }
 
