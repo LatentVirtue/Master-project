@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Drawing;
+﻿using System.Drawing;
 namespace ImageProcessingCPU.Algorithms
 {
     interface IAlgoInterface
     {
-        public Image Apply(Image x);
+        public Image Apply(ref Image x);
     }
 }

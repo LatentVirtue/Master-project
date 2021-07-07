@@ -7,7 +7,7 @@ namespace ImageProcessingCPU.Algorithms
 {
     class TestAlgo : IAlgoInterface
     {
-        public Image Apply(Image x)
+        public Image Apply(ref Image x)
         {
 
             Bitmap temp = new Bitmap(ImageHandler.Temporary);

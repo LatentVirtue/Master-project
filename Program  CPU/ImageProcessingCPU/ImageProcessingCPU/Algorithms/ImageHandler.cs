@@ -94,7 +94,7 @@ namespace ImageProcessingCPU
                 return null;
             }
             TestAlgo x = new TestAlgo();
-            temporary = x.Apply(temporary);
+            temporary = x.Apply(ref temporary);
             Refresh();
             return preview;
         }
@@ -106,7 +106,7 @@ namespace ImageProcessingCPU
                 return null;
             }
             Canny x = new Canny(c);
-            temporary = x.Apply(temporary);
+            temporary = x.Apply(ref temporary);
             Refresh();
             return preview;
         }

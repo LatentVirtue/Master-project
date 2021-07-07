@@ -1,20 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Drawing;
-using ImageProcessor;
 using ImageProcessor.Imaging.Filters.Photo;
-using ImageProcessor.Imaging;
-using ImageProcessingCPU;
 using System.Linq;
-using ILGPU;
-using ILGPU.Runtime;
 
 namespace ImageProcessingCPU.Algorithms
 {
     class HelperObject
     {
-        public int label; //in case i need it for conected component labeling or hoshen-kopelman algo
+        //public int label; //in case i need it for conected component labeling or hoshen-kopelman algo
         public bool hasStrong = false;
         public List<Point> body = new List<Point>();
         public bool upIntersect = false;
@@ -71,17 +65,20 @@ namespace ImageProcessingCPU.Algorithms
     class Canny : IAlgoInterface
     {
         //Sobel operator kernels
-        int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
-        int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+        readonly int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+        readonly int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+
         //Prewitt
-        int[,] prewittX = { { 1, 0, -1 }, { 1, 0, -1 }, { 1, 0, -1 } };
-        int[,] prewittY = { { 1, 1, 1 }, { 0, 0, 0 }, { -1, -1, -1 } };
+        readonly int[,] prewittX = { { 1, 0, -1 }, { 1, 0, -1 }, { 1, 0, -1 } };
+        readonly int[,] prewittY = { { 1, 1, 1 }, { 0, 0, 0 }, { -1, -1, -1 } };
+
         //Roberts
-        int[,] robertsX = { { 1, 0 }, { 0, -1 } };
-        int[,] robertsY = { { 0, 1 }, { -1, 0 } };
+        readonly int[,] robertsX = { { 1, 0 }, { 0, -1 } };
+        readonly int[,] robertsY = { { 0, 1 }, { -1, 0 } };
+
         //Scharr
-        int[,] scharrX = { { 3, 0, -3 }, { 10, 0, -10 }, { 3, 0, -3 } };
-        int[,] scharrY = { { 3, 10, 3 }, { 0, 0, 0 }, { -3, -10, -3 } };
+        readonly int[,] scharrX = { { 3, 0, -3 }, { 10, 0, -10 }, { 3, 0, -3 } };
+        readonly int[,] scharrY = { { 3, 10, 3 }, { 0, 0, 0 }, { -3, -10, -3 } };
         //actual
         int[,] opX;
         int[,] opY;
@@ -91,8 +88,8 @@ namespace ImageProcessingCPU.Algorithms
         double[,] gIntensity;
         byte[,] label;
         double max;
-        double lowerT = 0.1;
-        double upperT = 0.3;
+        readonly double lowerT = 0.1;
+        readonly double upperT = 0.3;
         public Canny(int kOperator)
         {
             switch (kOperator)
@@ -189,10 +186,6 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             return ret;
-        }
-        void ConKernel(Index2 index, ArrayView<int> dataView, ref int[,] filter, ref Bitmap target)
-        {
-
         }
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
@@ -363,7 +356,7 @@ namespace ImageProcessingCPU.Algorithms
         {
             int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
             int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
-            actual = x;
+            actual = x; 
             GaussianFilter();
             Bitmap temp = new Bitmap(actual);
             int[,] Gx = Convolve(ref temp, ref sobelX);
@@ -450,7 +443,7 @@ namespace ImageProcessingCPU.Algorithms
         }
 
         //final - apply 
-        public Image Apply(Image x)
+        public Image Apply(ref Image x)
         {
             if (x == null)
             {
