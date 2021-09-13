@@ -90,7 +90,7 @@ namespace ImageProcessingCPU.Algorithms
         double max;
         readonly double lowerT = 0.1;
         readonly double upperT = 0.3;
-        public Canny(int kOperator)
+        public Canny(int kOperator = 0)
         {
             switch (kOperator)
             {
@@ -458,6 +458,29 @@ namespace ImageProcessingCPU.Algorithms
             Hysteresis();
             actual = ReconstructFromGradient();
             return actual;
+        }
+        public bool[,] matrixDirect(ref Image x)
+        {
+            if (x == null)
+            {
+                return null;
+            }
+            actual = x;
+            ToGrayscale();
+            GaussianFilter();
+            Gradient();
+            NonMaxSuppression();
+            DoubleThreshold();
+            Hysteresis();
+            bool[,] ret = new bool[label.GetLength(0), label.GetLength(1)];
+            for (int i = 0; i < label.GetLength(0); i++)
+            {
+                for (int j = 0; j < label.GetLength(1); j++)
+                {
+                    ret[i, j] = label[i, j] % 10 > 0;
+                }
+            }
+            return ret;
         }
     }
 }

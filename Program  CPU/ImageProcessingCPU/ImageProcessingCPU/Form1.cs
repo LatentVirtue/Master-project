@@ -58,5 +58,10 @@ namespace ImageProcessingCPU
         {
             canny_choice = canny_choice1.SelectedIndex;
         }
+
+        private void Button_hough_Click(object sender, EventArgs e)
+        {
+            MainBox.Image = ImageHandler.Hough();
+        }
     }
 }

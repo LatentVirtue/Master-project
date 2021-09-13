@@ -121,5 +121,16 @@ namespace ImageProcessingCPU
             Refresh();
             return preview;
         }
+        public static Image Hough()
+        {
+            if (!Check())
+            {
+                return null;
+            }
+            HoughTransform x = new HoughTransform(ref temporary);
+            x.Apply(ref temporary);
+            Refresh();
+            return preview;
+        }
     }
 }

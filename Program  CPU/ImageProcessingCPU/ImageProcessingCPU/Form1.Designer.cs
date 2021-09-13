@@ -36,6 +36,7 @@ namespace ImageProcessingCPU
             this.Button_Canny = new System.Windows.Forms.Button();
             this.Button_Save = new System.Windows.Forms.Button();
             this.canny_choice1 = new System.Windows.Forms.ComboBox();
+            this.Button_hough = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).BeginInit();
             this.SuspendLayout();
             // 
@@ -108,11 +109,22 @@ namespace ImageProcessingCPU
             this.canny_choice1.TabIndex = 6;
             this.canny_choice1.SelectedIndexChanged += new System.EventHandler(this.canny_choice1_SelectedIndexChanged);
             // 
+            // Button_hough
+            // 
+            this.Button_hough.Location = new System.Drawing.Point(719, 102);
+            this.Button_hough.Name = "Button_hough";
+            this.Button_hough.Size = new System.Drawing.Size(75, 23);
+            this.Button_hough.TabIndex = 7;
+            this.Button_hough.Text = "Hough";
+            this.Button_hough.UseVisualStyleBackColor = true;
+            this.Button_hough.Click += new System.EventHandler(this.Button_hough_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(799, 450);
+            this.Controls.Add(this.Button_hough);
             this.Controls.Add(this.canny_choice1);
             this.Controls.Add(this.Button_Save);
             this.Controls.Add(this.Button_Canny);
@@ -137,6 +149,7 @@ namespace ImageProcessingCPU
         private System.Windows.Forms.Button Button_Canny;
         private System.Windows.Forms.Button Button_Save;
         private System.Windows.Forms.ComboBox canny_choice1;
+        private System.Windows.Forms.Button Button_hough;
     }
 }
 
