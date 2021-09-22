@@ -62,8 +62,9 @@ namespace ImageProcessingCPU.Algorithms
             body = null;
         }
     }
-    class Canny : IAlgoInterface
+    class Canny
     {
+        int selectedKernel;
         //Sobel operator kernels
         readonly int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
         readonly int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
@@ -83,15 +84,17 @@ namespace ImageProcessingCPU.Algorithms
         int[,] opX;
         int[,] opY;
         //optimize these for memory
-        Image actual;
+        Bitmap actual;
         double[,] angle;
         double[,] gIntensity;
+        double[,] grayscale;
         byte[,] label;
         double max;
-        readonly double lowerT = 0.1;
-        readonly double upperT = 0.3;
+        readonly double lowerT = 0.07;
+        readonly double upperT = 0.15;
         public Canny(int kOperator = 0)
         {
+            selectedKernel = kOperator;
             switch (kOperator)
             {
                 case 0:
@@ -112,32 +115,76 @@ namespace ImageProcessingCPU.Algorithms
                     break;
             }
         }
+        //here I picked CPU because of one-pass nature of the function. GetPixel is not very efficient, but that isn't solved with GPU implementation
+        //after grayscale has been applied, everything is passed to CannyGPU
         void ToGrayscale()
         {
-            ImageHandler.factory.Load(actual);
-            ImageHandler.factory.Filter(MatrixFilters.GreyScale);
-            actual = ImageHandler.factory.Image;
+            grayscale = new double[actual.Height, actual.Width];
+            for (int i = 0; i < grayscale.GetLength(0); i++)
+            {
+                for (int j = 0; j < grayscale.GetLength(1); j++)
+                {
+                    Color t = actual.GetPixel(j, i);
+                    grayscale[i, j] = (t.R + t.G + t.B) / 3.0;
+                }
+            }
         }
+        //in order to not pass data back and forth between GPU and CPU, the matrixes used the first few steps of canny will be kept in the GPU buffer until completion
         //1. Gaussian filter
+        //originally used CPU, switched to GPU as its a convolution.
         void GaussianFilter()
         {
-            ImageHandler.factory.Load(actual);
-            ImageHandler.factory.GaussianBlur(5);
-            actual = ImageHandler.factory.Image;
+            //normalized gaussian kernel for convolution
+            double[,] gaussianMatrix = {    {0.00000067, 0.00002292, 0.00019117, 0.00038771, 0.00019117, 0.00002292, 0.00000067 },
+                                            {0.00002292, 0.00078633, 0.00655965, 0.01330373, 0.00655965, 0.00078633, 0.00002292 },
+                                            {0.00019117, 0.00655965, 0.05472157, 0.11098164, 0.05472157, 0.00655965, 0.00019117 },
+                                            {0.00038771, 0.01330373, 0.11098164, 0.22508352, 0.11098164, 0.01330373, 0.00038771 },
+                                            {0.00019117, 0.00655965, 0.05472157, 0.11098164, 0.05472157, 0.00655965, 0.00019117 },
+                                            {0.00002292, 0.00078633, 0.00655965, 0.01330373, 0.00655965, 0.00078633, 0.00002292 },
+                                            {0.00000067, 0.00002292, 0.00019117, 0.00038771 ,0.00019117, 0.00002292, 0.00000067 }};
+            double[,] notNormalizedGaussMatrix = { { 1, 4, 7, 4, 1 }, { 4, 16, 26, 16, 4 }, { 7, 26, 41, 26, 7 }, { 4, 16, 26, 16, 4 }, { 1, 4, 7, 4, 1 } };
+            double[,] smallGaussianMatrix = { { 1, 2, 1 }, { 2, 4, 2 }, { 1, 2, 1 } };
+            CannyGPU.ApplyDouble(gaussianMatrix, ref grayscale);
+            //Convolution.ApplyDouble(notNormalizedGaussMatrix, ref grayscale);
         }
         //2. Intensity gradient
+        //this is also done on GPU because it is a simple convolution
+        void GradientGPU()
+        {
+            double[,] Gx = grayscale;
+            double[,] Gy = grayscale;
+            //convert kernels to double[,]
+            int n = opX.GetLength(0);
+            int m = opX.GetLength(1);
+            double[,] kX = new double[n, m];
+            double[,] kY = new double[n, m];
+            for(int i = 0; i < n; i++)
+            {
+                for(int j = 0; j < m; j++)
+                {
+                    kX[i, j] = opX[i, j];
+                    kY[i, j] = opY[i, j];
+                }
+            }
+            //convolution with converted kernels
+            CannyGPU.ApplyDouble(kX, ref Gx);
+            CannyGPU.ApplyDouble(kY, ref Gy);
+            //computing gradient intensity via G = sqrt(Gx^2+Gy^2)
+            ComputeGradient(ref Gx, ref Gy);
+        }
         void Gradient()
         {
             //applying kernels
             Bitmap temp = new Bitmap(actual);
-            int[,] Gx = Convolve(ref temp, ref opX);
-            int[,] Gy = Convolve(ref temp, ref opY);
+            int[,] Gx = Convolve(ref temp, opX);
+            int[,] Gy = Convolve(ref temp, opY);
             //computing gradient intensity via G = sqrt(Gx^2+Gy^2)
             ComputeGradient(ref Gx, ref Gy);
             //actual = temp;
             ImageHandler.factory.Load(actual);
         }
         //also implement channels
+        //staying on CPU due to one-pass with it is faster than copying it to GPU, then passing back the computed thing
         void ComputeGradient(ref int[,] Gx, ref int[,] Gy)
         {
             gIntensity = new double[Gx.GetLength(0), Gx.GetLength(1)];
@@ -147,13 +194,33 @@ namespace ImageProcessingCPU.Algorithms
                 for (int j = 0; j < gIntensity.GetLength(1); j++)
                 {
                     gIntensity[i, j] = Math.Sqrt(Gx[i, j] * Gx[i, j] + Gy[i, j] * Gy[i, j]);
+                    if (max < gIntensity[i, j])
+                    {
+                        max = gIntensity[i, j];
+                    }
                     angle[i, j] = (Math.Atan2(Gx[i, j], Gy[i, j]) * (180 / Math.PI)) % 180;
                 }
             }
-            max = gIntensity.Cast<double>().Max();
+        }
+        void ComputeGradient(ref double[,] Gx, ref double[,] Gy)
+        {
+            gIntensity = new double[Gx.GetLength(0), Gx.GetLength(1)];
+            angle = new double[Gx.GetLength(0), Gx.GetLength(1)];
+            for (int i = 0; i < gIntensity.GetLength(0); i++)
+            {
+                for (int j = 0; j < gIntensity.GetLength(1); j++)
+                {
+                    gIntensity[i, j] = Math.Sqrt(Gx[i, j] * Gx[i, j] + Gy[i, j] * Gy[i, j]);
+                    if (max < gIntensity[i, j])
+                    {
+                        max = gIntensity[i, j];
+                    }
+                    angle[i, j] = (Math.Atan2(Gx[i, j], Gy[i, j]) * (180 / Math.PI)) % 180;
+                }
+            }
         }
         //also add an overload for color channels
-        int[,] Convolve(ref Bitmap target, ref int[,] filter)
+        int[,] Convolve(ref Bitmap target, int[,] filter)
         {
             int[,] ret = new int[target.Height, target.Width];
             for (int i = 0; i < target.Height; i++)
@@ -187,6 +254,7 @@ namespace ImageProcessingCPU.Algorithms
             }
             return ret;
         }
+
         //3. Apply gradient magnitude tresholding or lower-bound cutoff suppression to get rid of spurious response to edge detection
         //non-maximum suppresion
         //also works only with greyscale. consider overloading for color channels
@@ -356,11 +424,11 @@ namespace ImageProcessingCPU.Algorithms
         {
             int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
             int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
-            actual = x; 
+            actual = (Bitmap)x;
             GaussianFilter();
             Bitmap temp = new Bitmap(actual);
-            int[,] Gx = Convolve(ref temp, ref sobelX);
-            int[,] Gy = Convolve(ref temp, ref sobelY);
+            int[,] Gx = Convolve(ref temp, sobelX);
+            int[,] Gy = Convolve(ref temp, sobelY);
             ComputeGradient(ref Gx, ref Gy);
             Bitmap res = new Bitmap(gIntensity.GetLength(1), gIntensity.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             double max = gIntensity.Cast<double>().Max();
@@ -443,23 +511,32 @@ namespace ImageProcessingCPU.Algorithms
         }
 
         //final - apply 
-        public Image Apply(ref Image x)
+        public Image Apply(Image x)
         {
             if (x == null)
             {
                 return null;
             }
-            actual = x;
-            ToGrayscale();
-            GaussianFilter();
-            Gradient();
-            NonMaxSuppression();
-            DoubleThreshold();
+            actual = (Bitmap)x;
+            //ToGrayscale();
+            //GaussianFilter();
+            //GradientGPU();
+            //NonMaxSuppression();
+            //DoubleThreshold();
+            CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[actual.Height, actual.Width];
+            for(int i = 0; i < actual.Height; i++)
+            {
+                for(int j = 0; j < actual.Width; j++)
+                {
+                    target[i, j] = new CannyGPU.TroupleDouble(actual.GetPixel(j, i));
+                }
+            }
+            label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
             Hysteresis();
             actual = ReconstructFromGradient();
             return actual;
         }
-        public bool[,] matrixDirect(ref Image x)
+        public bool[,] matrixDirect(ref Bitmap x)
         {
             if (x == null)
             {
@@ -468,7 +545,7 @@ namespace ImageProcessingCPU.Algorithms
             actual = x;
             ToGrayscale();
             GaussianFilter();
-            Gradient();
+            GradientGPU();
             NonMaxSuppression();
             DoubleThreshold();
             Hysteresis();

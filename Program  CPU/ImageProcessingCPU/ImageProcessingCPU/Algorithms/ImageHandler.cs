@@ -106,7 +106,7 @@ namespace ImageProcessingCPU
                 return null;
             }
             Canny x = new Canny(c);
-            temporary = x.Apply(ref temporary);
+            temporary = x.Apply(temporary);
             Refresh();
             return preview;
         }

@@ -165,7 +165,7 @@ namespace ImageProcessingCPU.Algorithms
     {
         Graphics g;
         static Canny cannyEdge = new Canny();
-        Image actual;
+        Bitmap actual;
         bool[,] m;
         int cluster_min_size = 5;
         readonly double cluster_min_deviation;
@@ -174,11 +174,12 @@ namespace ImageProcessingCPU.Algorithms
         readonly double n_sigmas;
         public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.002, double n_sigmas = 2.0)
         {
-            actual = a;
+            actual = (Bitmap)a;
             g = Graphics.FromImage(actual);
             this.cluster_min_deviation = cluster_min_deviation;
             this.delta = delta;
             this.kernel_min_height = kernel_min_height;
+            this.n_sigmas = n_sigmas;
             m = cannyEdge.matrixDirect(ref actual);
         }
         //1. Identify clusters of approx. collinear feature pixels
@@ -243,8 +244,9 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
         }
-        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index, double min_deviation, int min_size, bool add)
+        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index, double min_deviation, int min_size)
         {
+            int clusters_count = clusters.Count;
             if (chain.Count == 0)
             {
                 return 0;
@@ -297,8 +299,8 @@ namespace ImageProcessingCPU.Algorithms
             // Test the number of pixels of the sub-clusters.
             if ((max_pixel_index - first_index + 1) >= min_size && (last_index - max_pixel_index + 1) >= min_size)
             {
-                double ratio1 = Subdivision_procedure(ref clusters, chain, first_index, max_pixel_index, min_deviation, min_size, false);
-                double ratio2 = Subdivision_procedure(ref clusters, chain, max_pixel_index, last_index, min_deviation, min_size, false);
+                double ratio1 = Subdivision_procedure(ref clusters, chain, first_index, max_pixel_index, min_deviation, min_size);
+                double ratio2 = Subdivision_procedure(ref clusters, chain, max_pixel_index, last_index, min_deviation, min_size);
 
                 // Test the quality of the sub-clusters against the quality of the current cluster.
                 if (ratio1 > ratio || ratio2 > ratio)
@@ -307,33 +309,33 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             // Remove the sub-clusters from the list of clusters.
-
-            if (add)
+            if (clusters.Count > clusters_count)
             {
-                // Keep current cluster
-                LinkedList<Pixel> temp = new LinkedList<Pixel>();
-                var c = chain.First;
-                for (int i = 1; i < chain.Count; i++)
-                {
-                    if (i >= first_index)
-                    {
-                        if (i > last_index)
-                        {
-                            break;
-                        }
-                        temp.AddLast(c.Value);
-                    }
-                    c = c.Next;
-                }
-                clusters.Add(temp);
+                clusters.RemoveRange(clusters_count - 1, clusters.Count - clusters.Count + 1);
             }
+            // Keep current cluster
+            LinkedList<Pixel> temp = new LinkedList<Pixel>();
+            var c = chain.First;
+            for (int i = 1; i < chain.Count; i++)
+            {
+                if (i >= first_index)
+                {
+                    if (i > last_index)
+                    {
+                        break;
+                    }
+                    temp.AddLast(c.Value);
+                }
+                c = c.Next;
+            }
+            clusters.Add(temp);
             return ratio;
         }
         void Find_clusters(double min_deviation, int min_size)
         {
             for (int i = 0; i < chains.Count; i++)
             {
-                Subdivision_procedure(ref clusters, chains[i], 0, chains[i].Count - 1, min_deviation, min_size, true);
+                Subdivision_procedure(ref clusters, chains[i], 0, chains[i].Count - 1, min_deviation, min_size);
             }
         }
         //2. Compute an elliptical kernel for each cluster from its line fitting uncertainty
@@ -352,18 +354,17 @@ namespace ImageProcessingCPU.Algorithms
             }
             mean_x *= one_div_npixels;
             mean_y *= one_div_npixels;
-            double[,] M = new double[2,2];
-            M[0,0] = M[1,1] = M[0,1] = 0.0;
+            double[,] M = new double[2, 2];
             foreach (Pixel p in cluster)
             {
                 double x = p.x - mean_x;
                 double y = p.y - mean_y;
 
-                M[0,0] += x * x;
-                M[1,1] += y * y;
-                M[0,1] += x * y;
+                M[0, 0] += x * x;
+                M[1, 1] += y * y;
+                M[0, 1] += x * y;
             }
-            M[1,0] = M[0,1];
+            M[1, 0] = M[0, 1];
 
             //eigen(V, S, M);
             double[] temp = eigenValue(M);
@@ -539,9 +540,9 @@ namespace ImageProcessingCPU.Algorithms
         }
         void Vote(ref Accumulator accumulator, int rho_start_index, int theta_start_index, double rho_start, double theta_start, int inc_rho_index, int inc_theta_index, double sigma2_rho, double sigma2_theta, double sigma_rho_theta, double scale)
         {
-            int rho_size = accumulator.m_width;
-            int theta_size = accumulator.m_height;
-            double delta = accumulator.m_delta;
+            //int rho_size = accumulator.m_width;
+            //int theta_size = accumulator.m_height;
+            //double delta = accumulator.m_delta;
             double inc_rho = delta * inc_rho_index, inc_theta = delta * inc_theta_index;
 
             double sigma_rho_sigma_theta = Math.Sqrt(sigma2_rho * sigma2_theta);
@@ -559,10 +560,10 @@ namespace ImageProcessingCPU.Algorithms
             do
             {
                 // Test if the kernel exceeds the parameter space limits.
-                if (theta_index == 0 || theta_index == (theta_size + 1))
+                if (theta_index == 0 || theta_index == (accumulator.m_height + 1))
                 {
-                    rho_start_index = rho_size - rho_start_index + 1;
-                    theta_index = theta_index == 0 ? theta_size : 1;
+                    rho_start_index = accumulator.m_width - rho_start_index + 1;
+                    theta_index = theta_index == 0 ? accumulator.m_height : 1;
                     inc_rho_index = -inc_rho_index;
                 }
 
@@ -571,7 +572,7 @@ namespace ImageProcessingCPU.Algorithms
 
                 rho_index = rho_start_index;
                 rho = rho_start;
-                while ((votes = (int)Math.Round((Gauss(rho, theta, sigma2_rho, sigma2_theta, sigma_rho_sigma_theta, r*2, a, b) * scale) + 0.5)) > 0 && rho_index >= 1 && rho_index <= rho_size)
+                while ((votes = (int)Math.Round((Gauss(rho, theta, sigma2_rho, sigma2_theta, sigma_rho_sigma_theta, r * 2, a, b) * scale) + 0.5)) > 0 && rho_index >= 1 && rho_index <= accumulator.m_width)
                 {
                     accumulator.bins[theta_index, rho_index] += votes;
                     theta_voted = true;
@@ -588,7 +589,7 @@ namespace ImageProcessingCPU.Algorithms
                 theta += inc_theta;
                 theta_count++;
             }
-            while (theta_not_voted != 2 && theta_count < theta_size);
+            while (theta_not_voted != 2 && theta_count < accumulator.m_height);
         }
         void Voting(double kernel_min_height, double n_sigmas)
         {
@@ -610,7 +611,7 @@ namespace ImageProcessingCPU.Algorithms
 
             foreach (LinkedList<Pixel> cluster in clusters)
             {
-                kernels.Add(ComputeKernel(cluster, accumulator.robounds2, 1.0/accumulator.m_delta, n_sigmas * n_sigmas));
+                kernels.Add(ComputeKernel(cluster, accumulator.robounds2, 1.0 / accumulator.m_delta, n_sigmas * n_sigmas));
             }
 
             /* Leandro A. F. Fernandes, Manuel M. Oliveira
@@ -645,7 +646,10 @@ namespace ImageProcessingCPU.Algorithms
                     i++;
                 }
             }
-
+            if (i < used_kernels.Count)
+            {
+                used_kernels.RemoveRange(i, used_kernels.Count - i);
+            }
             // Find the g_min threshold and compute the scale factor for integer votes.
             double kernels_scale = double.MinValue;
             foreach (Kernel kernel in used_kernels)
@@ -708,7 +712,7 @@ namespace ImageProcessingCPU.Algorithms
             }
 
             // Sort the list in descending order according to the result of the convolution.
-            used_bins.Sort((x, y) => x.votes.CompareTo(y.votes));
+            used_bins.Sort((x, y) => -x.votes.CompareTo(y.votes));
             // Use a sweep plane that visits each cell of the list.
             VisitedMap visited = new VisitedMap();
             visited.init(accumulator.m_width, accumulator.m_height);
@@ -725,12 +729,50 @@ namespace ImageProcessingCPU.Algorithms
         public void DrawLines(List<Line> lines, int lineWidth)
         {
             Point c = new Point(actual.Width / 2, actual.Height / 2);
+            int count = 0;
             foreach (Line l in lines)
             {
+                if(count >= 15)
+                {
+                    break;
+                }
+                count++;
                 Pen yPen = new Pen(Color.Yellow, lineWidth);
-                Point p = new Point((int)(l.rho * Math.Cos(l.theta)), (int)(l.rho * Math.Sin(l.theta)));
-                g.DrawLine(yPen, c, p);
+                double rho = l.rho;
+                double theta = l.theta * (Math.PI / 180);
+                double cos_theta = Math.Cos(theta), sin_theta = Math.Sin(theta);
+                Point p1 = new Point();
+                Point p2 = new Point();
+
+                // Convert from KHT to OpenCV window coordinate system conventions.
+                // The KHT implementation assumes row-major memory alignment for
+                // images. Also, it assumes that the origin of the image coordinate
+                // system is at the center of the image, with the x-axis growing to
+                // the right and the y-axis growing down.
+                if (sin_theta != 0.0)
+                {
+                    p1.X = -actual.Width / 2;
+                    p1.Y = (int)((rho - p1.X * cos_theta) / sin_theta);
+                    p2.X = actual.Width / 2 - 1;
+                    p2.Y = (int)((rho - p2.X * cos_theta) / sin_theta);
+                }
+                else
+                {
+                    p1.X = (int)rho;
+                    p1.Y = -actual.Height/2;
+                    p2.X = (int)rho;
+                    p2.Y = -actual.Height/2 -1;
+                }
+                p1.X += actual.Width / 2;
+                p1.Y += actual.Height / 2;
+                p2.X += actual.Width / 2;
+                p2.Y += actual.Height / 2;
+                //Point p = new Point((int)(l.rho * Math.Cos(l.theta)), (int)(l.rho * Math.Sin(l.theta)));
+                g.DrawLine(yPen, p1, p2);
+
+
             }
+
         }
         List<LinkedList<Pixel>> chains = new List<LinkedList<Pixel>>();
         List<LinkedList<Pixel>> clusters = new List<LinkedList<Pixel>>();
@@ -744,7 +786,7 @@ namespace ImageProcessingCPU.Algorithms
 
             Voting(kernel_min_height, n_sigmas);
             Peak_detection();
-            DrawLines(lines, 2);
+            DrawLines(lines, 1);
             return actual;
         }
     }
