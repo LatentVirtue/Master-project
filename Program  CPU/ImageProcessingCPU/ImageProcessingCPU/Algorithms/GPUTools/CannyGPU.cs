@@ -156,8 +156,88 @@ namespace ImageProcessingCPU.Algorithms
         }
         static void NMSKernel(Index2 position, ArrayView2D<TroupleDouble> actual)
         {
-            actual[position.X+1,position.Y+1].D3 = 0;
+            actual[position.X + 1, position.Y + 1].D3 = 0;
             double angle = actual[position.X + 1, position.Y + 1].D2;
+            //this was an attempt at streamlining NMS code, but failed miserably, the results aren't as good as with old NMS
+            /*
+            int switcher = (int)(angle / 45) + 3;
+            bool u = false;
+            if (angle >= 0)
+            {
+                switcher++;
+            }
+            else
+            {
+                u = true;
+                angle *= -1;
+            }
+            (int, int) offset1L = (0, 0);
+            (int, int) offset1R = (0, 0);
+            (int, int) offset2L = (0, 0);
+            (int, int) offset2R = (0, 0);
+
+            switch (switcher)
+            {
+                case 0:
+                    offset1L = (2, 0);
+                    offset1R = (2, 1);
+                    offset2L = (0, 1);
+                    offset2R = (0, 2);
+                    break;
+                case 1:
+                    offset2L = (0, 2);
+                    offset2R = (1, 2);
+                    offset1L = (1, 0);
+                    offset1R = (2, 0);
+                    break;
+                case 2:
+                    offset2R = (1, 0);
+                    offset1L = (1, 2);
+                    offset1R = (2, 2);
+                    break;
+                case 3:
+                    offset2L = (0, 1);
+                    offset1L = (2, 2);
+                    offset1R = (2, 1);
+                    break;
+                case 4:
+                    offset1L = (0, 1);
+                    offset1R = (0, 2);
+                    offset2L = (2, 1);
+                    offset2R = (2, 0);
+                    break;
+                case 5:
+                    offset1L = (0, 2);
+                    offset1R = (1, 2);
+                    offset2L = (2, 0);
+                    offset2R = (1, 0);
+                    break;
+                case 6:
+                    offset1L = (1, 2);
+                    offset1R = (2, 2);
+                    offset2L = (1, 0);
+                    break;
+                case 7:
+                    offset1L = (2, 2);
+                    offset1R = (2,1);
+                    offset2R = (0, 1);
+                    break;
+            }
+            double l = (angle - 45 * ((int)angle / 45)) / 45;
+            double r = 1 - l;
+            if (u)
+            {
+                double temp = l;
+                l = r;
+                r = temp;
+            }
+            double a = XMath.Max(actual[position.X + offset1L.Item1, position.Y + offset1L.Item2].D1 * l + actual[position.X + offset1R.Item1, position.Y + offset1R.Item2].D1 * r, actual[position.X + offset2L.Item1, position.Y + offset2L.Item2].D1 * l + actual[position.X + offset2R.Item1, position.Y + offset2R.Item2].D1 * r);
+            if (actual[position.X + 1, position.Y + 1].D1 >= a)
+            {
+                actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
+            }
+            */
+            //this is the old and actual NMS
             //linear interpolation
             if (angle > -45)
             {
@@ -173,9 +253,9 @@ namespace ImageProcessingCPU.Algorithms
                                 double l = (angle - 135) / 45;
                                 double r = 1 - l;
                                 double a = XMath.Max(actual[position.X, position.Y].D1 * l + actual[position.X, position.Y + 1].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 2, position.Y + 1].D1 * r);
-                                if (actual[position.X+1,position.Y+1].D1 >= a)
+                                if (actual[position.X + 1, position.Y + 1].D1 >= a)
                                 {
-                                    actual[position.X+1,position.Y+1].D3 = actual[position.X+1,position.Y+1].D1;
+                                    actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
                                 }
                             }
                             else
@@ -197,7 +277,7 @@ namespace ImageProcessingCPU.Algorithms
                             //side diagonal
                             double l = (angle - 45) / 45;
                             double r = 1 - l;
-                            double a = XMath.Max(actual[position.X + 1 - 1, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r, actual[position.X + 2, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r);
+                            double a = XMath.Max(actual[position.X, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r, actual[position.X + 2, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r);
                             if (actual[position.X + 1, position.Y + 1].D1 >= a)
                             {
                                 actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
@@ -262,7 +342,7 @@ namespace ImageProcessingCPU.Algorithms
                     //-90 to -45
                     double l = (angle + 45) / -45;
                     double r = 1 - l;
-                    double a = XMath.Max(actual[position.X + 1 - 1, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r);
+                    double a = XMath.Max(actual[position.X, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r);
                     if (actual[position.X + 1, position.Y + 1].D1 >= a)
                     {
                         actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;

@@ -482,6 +482,9 @@ namespace ImageProcessingCPU.Algorithms
         //then, for all objects that contain strong pixels, preserve them, for those than dont, if they touch the border, and through it an object which contains a strong pixel, preserve them
         //delete all the rest
         //boom, parallelized
+
+        //this has been left as a CPU-only operation, as many memory dumps to and from the GPU will completely negate the time gains from kernel exectution
+
         //in CPU implementation, the objects can immediately be preserved or destroyed, as there are no bars
         void Hysteresis() //definitely not it
         {
@@ -542,12 +545,21 @@ namespace ImageProcessingCPU.Algorithms
             {
                 return null;
             }
-            actual = x;
-            ToGrayscale();
-            GaussianFilter();
-            GradientGPU();
-            NonMaxSuppression();
-            DoubleThreshold();
+            actual = (Bitmap)x;
+            //ToGrayscale();
+            //GaussianFilter();
+            //GradientGPU();
+            //NonMaxSuppression();
+            //DoubleThreshold();
+            CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[actual.Height, actual.Width];
+            for (int i = 0; i < actual.Height; i++)
+            {
+                for (int j = 0; j < actual.Width; j++)
+                {
+                    target[i, j] = new CannyGPU.TroupleDouble(actual.GetPixel(j, i));
+                }
+            }
+            label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
             Hysteresis();
             bool[,] ret = new bool[label.GetLength(0), label.GetLength(1)];
             for (int i = 0; i < label.GetLength(0); i++)

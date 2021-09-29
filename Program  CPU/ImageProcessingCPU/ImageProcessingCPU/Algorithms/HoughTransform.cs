@@ -192,14 +192,14 @@ namespace ImageProcessingCPU.Algorithms
             while (p.x != -1)
             {
                 S.AddLast(p);
-                m[p.y, p.x] = false;
+                m[p.x, p.y] = false;
                 p = Next(p);
             }
             p = Next(pr);
             while (p.x != -1)
             {
                 S.AddFirst(p);
-                m[p.y, p.x] = false;
+                m[p.x, p.y] = false;
                 p = Next(p);
             }
             return S;
