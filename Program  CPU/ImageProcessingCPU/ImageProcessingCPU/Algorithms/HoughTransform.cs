@@ -172,7 +172,7 @@ namespace ImageProcessingCPU.Algorithms
         readonly double delta;
         readonly double kernel_min_height;
         readonly double n_sigmas;
-        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.002, double n_sigmas = 2.0)
+        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 0.001)
         {
             actual = (Bitmap)a;
             g = Graphics.FromImage(actual);
@@ -192,14 +192,14 @@ namespace ImageProcessingCPU.Algorithms
             while (p.x != -1)
             {
                 S.AddLast(p);
-                m[p.x, p.y] = false;
+                m[p.y, p.x] = false;
                 p = Next(p);
             }
             p = Next(pr);
             while (p.x != -1)
             {
                 S.AddFirst(p);
-                m[p.x, p.y] = false;
+                m[p.y, p.x] = false;
                 p = Next(p);
             }
             return S;
@@ -229,11 +229,11 @@ namespace ImageProcessingCPU.Algorithms
         }
         void Find_chains(int image_width, int image_height, int min_size)
         {
-            for (int y = 1; y < image_height + 1; y++)
+            for (int y = 0; y < image_height; y++)
             {
-                for (int x = 1; x < image_width + 1; x++)
+                for (int x = 0; x < image_width; x++)
                 {
-                    if (m[y - 1, x - 1])
+                    if (m[y, x])
                     {
                         var t = Link(new Pixel(x, y, true));
                         if (t.Count > min_size)
@@ -340,7 +340,7 @@ namespace ImageProcessingCPU.Algorithms
         }
         //2. Compute an elliptical kernel for each cluster from its line fitting uncertainty
 
-        Kernel ComputeKernel(LinkedList<Pixel> cluster, double rho_max, double one_div_delta, double n_sigmas2)
+        Kernel ComputeKernel(LinkedList<Pixel> cluster, double rho_max, double one_div_delta)
         {
             double one_div_npixels = 1 / (double)(cluster.Count);
 
@@ -407,8 +407,8 @@ namespace ImageProcessingCPU.Algorithms
                 lambda[3] = 0.1;
             }
 
-            lambda[0] *= n_sigmas2;
-            lambda[3] *= n_sigmas2;
+            lambda[0] *= n_sigmas * n_sigmas;
+            lambda[3] *= n_sigmas * n_sigmas;
 
             // Compute the height of the kernel.
             double height = Gauss(0.0, 0.0, lambda[0], lambda[3], lambda[1]);
@@ -538,7 +538,7 @@ namespace ImageProcessingCPU.Algorithms
             double b = 1.0 / (2.0 * (1.0 - r * r));
             return Gauss(rho, theta, sigma2_rho, sigma2_theta, sigma_rho_sigma_theta, two_r, a, b);
         }
-        void Vote(ref Accumulator accumulator, int rho_start_index, int theta_start_index, double rho_start, double theta_start, int inc_rho_index, int inc_theta_index, double sigma2_rho, double sigma2_theta, double sigma_rho_theta, double scale)
+        void Vote(int rho_start_index, int theta_start_index, double rho_start, double theta_start, int inc_rho_index, int inc_theta_index, double sigma2_rho, double sigma2_theta, double sigma_rho_theta, double scale)
         {
             //int rho_size = accumulator.m_width;
             //int theta_size = accumulator.m_height;
@@ -591,7 +591,7 @@ namespace ImageProcessingCPU.Algorithms
             }
             while (theta_not_voted != 2 && theta_count < accumulator.m_height);
         }
-        void Voting(double kernel_min_height, double n_sigmas)
+        void Voting(double kernel_min_height)
         {
             /* Leandro A. F. Fernandes, Manuel M. Oliveira
             * Real-time line detection through an improved Hough transform voting scheme
@@ -611,7 +611,7 @@ namespace ImageProcessingCPU.Algorithms
 
             foreach (LinkedList<Pixel> cluster in clusters)
             {
-                kernels.Add(ComputeKernel(cluster, accumulator.robounds2, 1.0 / accumulator.m_delta, n_sigmas * n_sigmas));
+                kernels.Add(ComputeKernel(cluster, accumulator.robounds2, 1.0 / accumulator.m_delta));
             }
 
             /* Leandro A. F. Fernandes, Manuel M. Oliveira
@@ -679,10 +679,10 @@ namespace ImageProcessingCPU.Algorithms
             // Vote for each selected kernel.
             foreach (Kernel kernel in used_kernels)
             {
-                Vote(ref accumulator, kernel.rho_index, kernel.theta_index, 0.0, 0.0, 1, 1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
-                Vote(ref accumulator, kernel.rho_index, kernel.theta_index - 1, 0.0, -delta, 1, -1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
-                Vote(ref accumulator, kernel.rho_index - 1, kernel.theta_index, -delta, 0.0, -1, 1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
-                Vote(ref accumulator, kernel.rho_index - 1, kernel.theta_index - 1, -delta, -delta, -1, -1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
+                Vote(kernel.rho_index, kernel.theta_index, 0.0, 0.0, 1, 1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
+                Vote(kernel.rho_index, kernel.theta_index - 1, 0.0, -delta, 1, -1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
+                Vote(kernel.rho_index - 1, kernel.theta_index, -delta, 0.0, -1, 1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
+                Vote(kernel.rho_index - 1, kernel.theta_index - 1, -delta, -delta, -1, -1, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1], kernels_scale);
             }
         }
         void Peak_detection()
@@ -732,42 +732,44 @@ namespace ImageProcessingCPU.Algorithms
             int count = 0;
             foreach (Line l in lines)
             {
-                if(count >= 15)
+                /*
+                if (count >= 15)
                 {
                     break;
                 }
-                count++;
+                count++;*/
                 Pen yPen = new Pen(Color.Yellow, lineWidth);
                 double rho = l.rho;
                 double theta = l.theta * (Math.PI / 180);
                 double cos_theta = Math.Cos(theta), sin_theta = Math.Sin(theta);
-                Point p1 = new Point();
-                Point p2 = new Point();
+                PointF p1 = new Point();
+                PointF p2 = new Point();
 
                 // Convert from KHT to OpenCV window coordinate system conventions.
                 // The KHT implementation assumes row-major memory alignment for
                 // images. Also, it assumes that the origin of the image coordinate
                 // system is at the center of the image, with the x-axis growing to
                 // the right and the y-axis growing down.
-                if (sin_theta != 0.0)
+                if (sin_theta != 0)
                 {
-                    p1.X = -actual.Width / 2;
-                    p1.Y = (int)((rho - p1.X * cos_theta) / sin_theta);
-                    p2.X = actual.Width / 2 - 1;
-                    p2.Y = (int)((rho - p2.X * cos_theta) / sin_theta);
+                    p1.X = -actual.Width / 2.0f;
+                    p1.Y = (float)((rho - p1.X * cos_theta) / sin_theta);
+                    p2.X = actual.Width / 2.0f - 1;
+                    p2.Y = (float)((rho - p2.X * cos_theta) / sin_theta);
                 }
                 else
                 {
-                    p1.X = (int)rho;
-                    p1.Y = -actual.Height/2;
-                    p2.X = (int)rho;
-                    p2.Y = -actual.Height/2 -1;
+                    p1.X = (float)rho;
+                    p1.Y = -actual.Height / 2.0f;
+                    p2.X = (float)rho;
+                    p2.Y = actual.Height / 2.0f - 1;
                 }
-                p1.X += actual.Width / 2;
-                p1.Y += actual.Height / 2;
-                p2.X += actual.Width / 2;
-                p2.Y += actual.Height / 2;
+                p1.X += actual.Width / 2.0f;
+                p1.Y += actual.Height / 2.0f;
+                p2.X += actual.Width / 2.0f;
+                p2.Y += actual.Height / 2.0f;
                 //Point p = new Point((int)(l.rho * Math.Cos(l.theta)), (int)(l.rho * Math.Sin(l.theta)));
+                //g.DrawLine(yPen, new Point(p.Y,p.X), p);
                 g.DrawLine(yPen, p1, p2);
 
 
@@ -784,7 +786,7 @@ namespace ImageProcessingCPU.Algorithms
             Find_chains(x.Width, x.Height, cluster_min_size);
             Find_clusters(cluster_min_deviation, cluster_min_size);
 
-            Voting(kernel_min_height, n_sigmas);
+            Voting(kernel_min_height);
             Peak_detection();
             DrawLines(lines, 1);
             return actual;
