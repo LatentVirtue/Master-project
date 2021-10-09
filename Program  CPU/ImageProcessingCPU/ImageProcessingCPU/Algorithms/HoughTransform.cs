@@ -164,7 +164,7 @@ namespace ImageProcessingCPU.Algorithms
     class HoughTransform : IAlgoInterface
     {
         Graphics g;
-        static Canny cannyEdge = new Canny();
+        static Canny cannyEdge = new Canny(0,0.1,0.3);
         Bitmap actual;
         bool[,] m;
         int cluster_min_size = 5;
@@ -172,7 +172,7 @@ namespace ImageProcessingCPU.Algorithms
         readonly double delta;
         readonly double kernel_min_height;
         readonly double n_sigmas;
-        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 0.001)
+        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 2)
         {
             actual = (Bitmap)a;
             g = Graphics.FromImage(actual);
@@ -554,6 +554,8 @@ namespace ImageProcessingCPU.Algorithms
             double rho, theta;
             int votes, theta_not_voted = 0;
             long rho_index, theta_index, theta_count = 0;
+
+            // Loop for the theta coordinates of the parameter space.
             theta_index = theta_start_index;
             theta = theta_start;
 
@@ -694,9 +696,6 @@ namespace ImageProcessingCPU.Algorithms
             * Section 3.4
             */
 
-            List<double> rho = new List<double>(accumulator.m_ro);
-            List<double> theta = new List<double>(accumulator.m_theta);
-
             // Create a list with all cells that receive at least one vote.
             List<Bin> used_bins = new List<Bin>();
 
@@ -721,7 +720,7 @@ namespace ImageProcessingCPU.Algorithms
             {
                 if (!visited.Visited_neighbour(bin.rho_index, bin.theta_index))
                 {
-                    lines.Add(new Line(rho[bin.rho_index], theta[bin.theta_index]));
+                    lines.Add(new Line(accumulator.m_ro[bin.rho_index], accumulator.m_theta[bin.theta_index]));
                 }
                 visited.set_visited(bin.rho_index, bin.theta_index);
             }
@@ -730,14 +729,22 @@ namespace ImageProcessingCPU.Algorithms
         {
             Point c = new Point(actual.Width / 2, actual.Height / 2);
             int count = 0;
+            double comparisonTheta = 0102301230;
             foreach (Line l in lines)
             {
-                /*
+                if(comparisonTheta < l.theta*1.2 && comparisonTheta > l.theta*0.8)
+                {
+                    continue;
+                }
+                else
+                {
+                    comparisonTheta = l.theta;
+                }
                 if (count >= 15)
                 {
                     break;
                 }
-                count++;*/
+                count++;
                 Pen yPen = new Pen(Color.Yellow, lineWidth);
                 double rho = l.rho;
                 double theta = l.theta * (Math.PI / 180);

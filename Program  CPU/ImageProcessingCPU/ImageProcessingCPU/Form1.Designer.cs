@@ -37,6 +37,11 @@ namespace ImageProcessingCPU
             this.Button_Save = new System.Windows.Forms.Button();
             this.canny_choice1 = new System.Windows.Forms.ComboBox();
             this.Button_hough = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.textBoxLowerT = new System.Windows.Forms.TextBox();
+            this.textBoxUpperT = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).BeginInit();
             this.SuspendLayout();
             // 
@@ -103,7 +108,7 @@ namespace ImageProcessingCPU
             "Prewitt",
             "Roberts",
             "Scharr"});
-            this.canny_choice1.Location = new System.Drawing.Point(718, 72);
+            this.canny_choice1.Location = new System.Drawing.Point(719, 92);
             this.canny_choice1.Name = "canny_choice1";
             this.canny_choice1.Size = new System.Drawing.Size(75, 23);
             this.canny_choice1.TabIndex = 6;
@@ -111,7 +116,7 @@ namespace ImageProcessingCPU
             // 
             // Button_hough
             // 
-            this.Button_hough.Location = new System.Drawing.Point(719, 102);
+            this.Button_hough.Location = new System.Drawing.Point(720, 179);
             this.Button_hough.Name = "Button_hough";
             this.Button_hough.Size = new System.Drawing.Size(75, 23);
             this.Button_hough.TabIndex = 7;
@@ -119,11 +124,64 @@ namespace ImageProcessingCPU
             this.Button_hough.UseVisualStyleBackColor = true;
             this.Button_hough.Click += new System.EventHandler(this.Button_hough_Click);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(719, 71);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(54, 15);
+            this.label1.TabIndex = 8;
+            this.label1.Text = "Operator";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(718, 129);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(45, 15);
+            this.label2.TabIndex = 9;
+            this.label2.Text = "LowerT";
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(718, 158);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(45, 15);
+            this.label3.TabIndex = 10;
+            this.label3.Text = "UpperT";
+            this.label3.Click += new System.EventHandler(this.label3_Click);
+            // 
+            // textBoxLowerT
+            // 
+            this.textBoxLowerT.Location = new System.Drawing.Point(764, 121);
+            this.textBoxLowerT.MaxLength = 5;
+            this.textBoxLowerT.Name = "textBoxLowerT";
+            this.textBoxLowerT.Size = new System.Drawing.Size(31, 23);
+            this.textBoxLowerT.TabIndex = 11;
+            this.textBoxLowerT.Text = "0.1";
+            this.textBoxLowerT.TextChanged += new System.EventHandler(this.textBoxLowerT_TextChanged);
+            // 
+            // textBoxUpperT
+            // 
+            this.textBoxUpperT.Location = new System.Drawing.Point(764, 150);
+            this.textBoxUpperT.MaxLength = 5;
+            this.textBoxUpperT.Name = "textBoxUpperT";
+            this.textBoxUpperT.Size = new System.Drawing.Size(31, 23);
+            this.textBoxUpperT.TabIndex = 12;
+            this.textBoxUpperT.Text = "0.3";
+            this.textBoxUpperT.TextChanged += new System.EventHandler(this.textBoxUpperT_TextChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(799, 450);
+            this.Controls.Add(this.textBoxUpperT);
+            this.Controls.Add(this.textBoxLowerT);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.Button_hough);
             this.Controls.Add(this.canny_choice1);
             this.Controls.Add(this.Button_Save);
@@ -137,6 +195,7 @@ namespace ImageProcessingCPU
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).EndInit();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -150,6 +209,11 @@ namespace ImageProcessingCPU
         private System.Windows.Forms.Button Button_Save;
         private System.Windows.Forms.ComboBox canny_choice1;
         private System.Windows.Forms.Button Button_hough;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TextBox textBoxLowerT;
+        private System.Windows.Forms.TextBox textBoxUpperT;
     }
 }
 

@@ -13,6 +13,8 @@ namespace ImageProcessingCPU
     public partial class Form1 : Form
     {
         int canny_choice = 0;
+        double lowerT = 0.1;
+        double upperT = 0.3;
         public Form1()
         {
             InitializeComponent();
@@ -43,7 +45,7 @@ namespace ImageProcessingCPU
 
         private void Button_Canny_Click(object sender, EventArgs e)
         {
-            MainBox.Image = ImageHandler.Canny_test(canny_choice);
+            MainBox.Image = ImageHandler.Canny_test(canny_choice,lowerT, upperT);
         }
 
         private void Button_Save_Click(object sender, EventArgs e)
@@ -62,6 +64,21 @@ namespace ImageProcessingCPU
         private void Button_hough_Click(object sender, EventArgs e)
         {
             MainBox.Image = ImageHandler.Hough();
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBoxLowerT_TextChanged(object sender, EventArgs e)
+        {
+            lowerT = double.Parse(textBoxLowerT.Text);
+        }
+
+        private void textBoxUpperT_TextChanged(object sender, EventArgs e)
+        {
+            upperT = double.Parse(textBoxUpperT.Text);
         }
     }
 }

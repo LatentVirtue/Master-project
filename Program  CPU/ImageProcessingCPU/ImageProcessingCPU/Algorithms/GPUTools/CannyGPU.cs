@@ -159,7 +159,7 @@ namespace ImageProcessingCPU.Algorithms
             actual[position.X + 1, position.Y + 1].D3 = 0;
             double angle = actual[position.X + 1, position.Y + 1].D2;
             //this was an attempt at streamlining NMS code, but failed miserably, the results aren't as good as with old NMS
-            /*
+
             int switcher = (int)(angle / 45) + 3;
             bool u = false;
             if (angle >= 0)
@@ -179,51 +179,63 @@ namespace ImageProcessingCPU.Algorithms
             switch (switcher)
             {
                 case 0:
-                    offset1L = (2, 0);
+                    //2
+                    offset1L = (0, 2);
+                    offset1R = (2, 2);
+                    offset2L = (2, 0);
+                    offset2R = (0, 0);
+                    break;
+                case 1:
+                    //3
+                    offset1L = (2, 2);
                     offset1R = (2, 1);
+                    offset2L = (0, 0);
+                    offset2R = (0, 1);
+                    break;
+                case 2:
+                    //4
+                    offset1L = (2, 1);
+                    offset1R = (2, 0);
                     offset2L = (0, 1);
                     offset2R = (0, 2);
                     break;
-                case 1:
+                case 3:
+                    //5
+                    offset1L = (2, 0);
+                    offset1R = (1, 0);
                     offset2L = (0, 2);
                     offset2R = (1, 2);
-                    offset1L = (1, 0);
-                    offset1R = (2, 0);
-                    break;
-                case 2:
-                    offset2R = (1, 0);
-                    offset1L = (1, 2);
-                    offset1R = (2, 2);
-                    break;
-                case 3:
-                    offset2L = (0, 1);
-                    offset1L = (2, 2);
-                    offset1R = (2, 1);
                     break;
                 case 4:
+                    //6
+                    offset1L = (1, 0);
+                    offset1R = (0, 0);
+                    offset2L = (1, 2);
+                    offset2R = (2, 2);
+                    break;
+                case 5:
+                    //7
+                    offset1L = (0, 0);
+                    offset1R = (0, 1);
+                    offset2L = (2, 2);
+                    offset2R = (2, 1);
+                    break;
+                case 6:
+                    //0
                     offset1L = (0, 1);
                     offset1R = (0, 2);
                     offset2L = (2, 1);
                     offset2R = (2, 0);
                     break;
-                case 5:
+                case 7:
+                    //1
                     offset1L = (0, 2);
                     offset1R = (1, 2);
                     offset2L = (2, 0);
                     offset2R = (1, 0);
                     break;
-                case 6:
-                    offset1L = (1, 2);
-                    offset1R = (2, 2);
-                    offset2L = (1, 0);
-                    break;
-                case 7:
-                    offset1L = (2, 2);
-                    offset1R = (2,1);
-                    offset2R = (0, 1);
-                    break;
             }
-            double l = (angle - 45 * ((int)angle / 45)) / 45;
+            double l = (angle % 45) / 45;
             double r = 1 - l;
             if (u)
             {
@@ -236,9 +248,11 @@ namespace ImageProcessingCPU.Algorithms
             {
                 actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
             }
-            */
+
             //this is the old and actual NMS
             //linear interpolation
+
+            /*
             if (angle > -45)
             {
                 if (angle > 0)
@@ -349,6 +363,7 @@ namespace ImageProcessingCPU.Algorithms
                     }
                 }
             }
+            */
         }
         static void TresholdKernel(Index2 position, ArrayView2D<TroupleDouble> actual, ArrayView2D<byte> final, double max, double lowerT, double upperT)
         {

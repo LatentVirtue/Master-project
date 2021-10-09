@@ -90,9 +90,9 @@ namespace ImageProcessingCPU.Algorithms
         double[,] grayscale;
         byte[,] label;
         double max;
-        readonly double lowerT = 0.07;
-        readonly double upperT = 0.15;
-        public Canny(int kOperator = 0)
+        double lowerT = 0.1;
+        double upperT = 0.3;
+        public Canny(int kOperator, double lT, double uT)
         {
             selectedKernel = kOperator;
             switch (kOperator)
@@ -114,6 +114,8 @@ namespace ImageProcessingCPU.Algorithms
                     opY = scharrY;
                     break;
             }
+            lowerT = lT;
+            upperT = uT;
         }
         //here I picked CPU because of one-pass nature of the function. GetPixel is not very efficient, but that isn't solved with GPU implementation
         //after grayscale has been applied, everything is passed to CannyGPU
