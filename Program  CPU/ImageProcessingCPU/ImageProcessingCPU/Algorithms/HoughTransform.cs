@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Drawing;
 using System.Numerics;
+using System.Linq;
 
 namespace ImageProcessingCPU.Algorithms
 {
@@ -246,7 +247,6 @@ namespace ImageProcessingCPU.Algorithms
         }
         double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index, double min_deviation, int min_size)
         {
-            int clusters_count = clusters.Count;
             if (chain.Count == 0)
             {
                 return 0;
@@ -296,6 +296,7 @@ namespace ImageProcessingCPU.Algorithms
             {
                 return ratio;
             }
+            int clusters_count = clusters.Count;
             // Test the number of pixels of the sub-clusters.
             if ((max_pixel_index - first_index + 1) >= min_size && (last_index - max_pixel_index + 1) >= min_size)
             {
@@ -311,7 +312,7 @@ namespace ImageProcessingCPU.Algorithms
             // Remove the sub-clusters from the list of clusters.
             if (clusters.Count > clusters_count)
             {
-                clusters.RemoveRange(clusters_count - 1, clusters.Count - clusters.Count + 1);
+                clusters.RemoveRange(Math.Max(clusters_count - 1,0), clusters.Count - clusters_count);
             }
             // Keep current cluster
             LinkedList<Pixel> temp = new LinkedList<Pixel>();
@@ -715,7 +716,7 @@ namespace ImageProcessingCPU.Algorithms
             // Use a sweep plane that visits each cell of the list.
             VisitedMap visited = new VisitedMap();
             visited.init(accumulator.m_width, accumulator.m_height);
-
+            
             foreach (Bin bin in used_bins)
             {
                 if (!visited.Visited_neighbour(bin.rho_index, bin.theta_index))
@@ -732,6 +733,7 @@ namespace ImageProcessingCPU.Algorithms
             double comparisonTheta = 0102301230;
             foreach (Line l in lines)
             {
+                /*
                 if(comparisonTheta < l.theta*1.2 && comparisonTheta > l.theta*0.8)
                 {
                     continue;
@@ -740,6 +742,7 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     comparisonTheta = l.theta;
                 }
+                 */
                 if (count >= 15)
                 {
                     break;

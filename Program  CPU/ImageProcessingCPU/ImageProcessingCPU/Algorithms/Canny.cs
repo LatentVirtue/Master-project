@@ -553,16 +553,19 @@ namespace ImageProcessingCPU.Algorithms
             //GradientGPU();
             //NonMaxSuppression();
             //DoubleThreshold();
-            CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[actual.Height, actual.Width];
-            for (int i = 0; i < actual.Height; i++)
+            if(label == null)
             {
-                for (int j = 0; j < actual.Width; j++)
+                CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[actual.Height, actual.Width];
+                for (int i = 0; i < actual.Height; i++)
                 {
-                    target[i, j] = new CannyGPU.TroupleDouble(actual.GetPixel(j, i));
+                    for (int j = 0; j < actual.Width; j++)
+                    {
+                        target[i, j] = new CannyGPU.TroupleDouble(actual.GetPixel(j, i));
+                    }
                 }
+                label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
+                Hysteresis();
             }
-            label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
-            Hysteresis();
             bool[,] ret = new bool[label.GetLength(0), label.GetLength(1)];
             for (int i = 0; i < label.GetLength(0); i++)
             {
