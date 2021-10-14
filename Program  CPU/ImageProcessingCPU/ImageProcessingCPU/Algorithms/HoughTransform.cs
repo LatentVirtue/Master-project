@@ -245,7 +245,7 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
         }
-        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index, double min_deviation, int min_size)
+        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index)
         {
             if (chain.Count == 0)
             {
@@ -291,17 +291,17 @@ namespace ImageProcessingCPU.Algorithms
             max_deviation /= length;
 
             // Compute the ratio between the length of the segment and the maximum deviation.
-            double ratio = length / Math.Max(max_deviation, min_deviation);
+            double ratio = length / Math.Max(max_deviation, cluster_min_deviation);
             if (Math.Abs(first_index - last_index) < 2)
             {
                 return ratio;
             }
             int clusters_count = clusters.Count;
             // Test the number of pixels of the sub-clusters.
-            if ((max_pixel_index - first_index + 1) >= min_size && (last_index - max_pixel_index + 1) >= min_size)
+            if ((max_pixel_index - first_index + 1) >= cluster_min_size && (last_index - max_pixel_index + 1) >= cluster_min_size)
             {
-                double ratio1 = Subdivision_procedure(ref clusters, chain, first_index, max_pixel_index, min_deviation, min_size);
-                double ratio2 = Subdivision_procedure(ref clusters, chain, max_pixel_index, last_index, min_deviation, min_size);
+                double ratio1 = Subdivision_procedure(ref clusters, chain, first_index, max_pixel_index);
+                double ratio2 = Subdivision_procedure(ref clusters, chain, max_pixel_index, last_index);
 
                 // Test the quality of the sub-clusters against the quality of the current cluster.
                 if (ratio1 > ratio || ratio2 > ratio)
@@ -332,11 +332,11 @@ namespace ImageProcessingCPU.Algorithms
             clusters.Add(temp);
             return ratio;
         }
-        void Find_clusters(double min_deviation, int min_size)
+        void Find_clusters()
         {
             for (int i = 0; i < chains.Count; i++)
             {
-                Subdivision_procedure(ref clusters, chains[i], 0, chains[i].Count - 1, min_deviation, min_size);
+                Subdivision_procedure(ref clusters, chains[i], 0, chains[i].Count - 1);
             }
         }
         //2. Compute an elliptical kernel for each cluster from its line fitting uncertainty
@@ -794,7 +794,7 @@ namespace ImageProcessingCPU.Algorithms
         {
             accumulator = new Accumulator(x.Width, x.Height, delta);
             Find_chains(x.Width, x.Height, cluster_min_size);
-            Find_clusters(cluster_min_deviation, cluster_min_size);
+            Find_clusters();
 
             Voting(kernel_min_height);
             Peak_detection();
