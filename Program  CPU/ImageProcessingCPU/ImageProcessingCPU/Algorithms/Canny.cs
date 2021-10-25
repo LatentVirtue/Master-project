@@ -62,7 +62,7 @@ namespace ImageProcessingCPU.Algorithms
             body = null;
         }
     }
-    class Canny
+    class Canny : IDisposable
     {
         int selectedKernel;
         //Sobel operator kernels
@@ -116,6 +116,14 @@ namespace ImageProcessingCPU.Algorithms
             }
             lowerT = lT;
             upperT = uT;
+        }
+        public void Dispose()
+        {
+            actual = null;
+            angle = null;
+            gIntensity = null;
+            grayscale = null;
+            label = null;
         }
         //here I picked CPU because of one-pass nature of the function. GetPixel is not very efficient, but that isn't solved with GPU implementation
         //after grayscale has been applied, everything is passed to CannyGPU
@@ -395,6 +403,16 @@ namespace ImageProcessingCPU.Algorithms
                     {
                         if (label[i, j] % 10 > 0)
                         {
+                            /*
+                            //test coloring
+                            if(label[i,j]%10 > 1)
+                            {
+                                res.SetPixel(j, i, Color.White);
+                            }
+                            else
+                            {
+                                res.SetPixel(j, i, Color.Red);
+                            }*/
                             res.SetPixel(j, i, Color.White);
                         }
                         else
@@ -459,7 +477,7 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     if (gIntensity[i, j] < lowerT * max)
                     {
-                        //weak edges, which are disgarded
+                        //weak edges, which are discarded
                         gIntensity[i, j] = 0;
                         label[i, j] = 0;
                     }
@@ -488,7 +506,7 @@ namespace ImageProcessingCPU.Algorithms
         //this has been left as a CPU-only operation, as many memory dumps to and from the GPU will completely negate the time gains from kernel exectution
 
         //in CPU implementation, the objects can immediately be preserved or destroyed, as there are no bars
-        void Hysteresis() //definitely not it
+        void Hysteresis()
         {
             for (int i = 0; i < label.GetLength(0); i++)
             {

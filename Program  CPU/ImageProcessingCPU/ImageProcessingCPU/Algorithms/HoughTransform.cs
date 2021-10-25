@@ -125,15 +125,6 @@ namespace ImageProcessingCPU.Algorithms
     class VisitedMap
     {
         // Initializes the map.
-        public void init(int accumulator_width, int accumulator_height)
-        {
-            if (m_rho_capacity < (accumulator_width + 2) || m_theta_capacity < (accumulator_height + 2))
-            {
-                m_rho_capacity = accumulator_width + 2;
-                m_theta_capacity = accumulator_height + 2;
-            }
-            m_map = new bool[m_theta_capacity, m_rho_capacity];
-        }
 
         // Sets a given accumulator bin as visited.
         public void set_visited(int rho_index, int theta_index)
@@ -142,16 +133,33 @@ namespace ImageProcessingCPU.Algorithms
         }
 
         // Class constructor.
-        public VisitedMap()
+        public VisitedMap(int accumulator_width, int accumulator_height)
         {
-
+            if (m_rho_capacity < (accumulator_width + 2) || m_theta_capacity < (accumulator_height + 2))
+            {
+                m_rho_capacity = accumulator_width + 2;
+                m_theta_capacity = accumulator_height + 2;
+            }
+            m_map = new bool[m_theta_capacity, m_rho_capacity];
         }
         // Returns whether a neighbour bin was visited already.
         public bool Visited_neighbour(int rho_index, int theta_index)
         {
-            return m_map[theta_index - 1, rho_index - 1] || m_map[theta_index - 1, rho_index] || m_map[theta_index - 1, rho_index + 1] ||
-                   m_map[theta_index, rho_index - 1] || m_map[theta_index, rho_index + 1] ||
-                   m_map[theta_index + 1, rho_index - 1] || m_map[theta_index + 1, rho_index] || m_map[theta_index + 1, rho_index + 1];
+            for (int i = -1; i < 2; i++)
+            {
+                for (int j = -1; j < 2; j++)
+                {
+                    if (i == j && j == 0)
+                    {
+                        continue;
+                    }
+                    if (m_map[theta_index + i, rho_index + j])
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
         // The map of flags ([1,theta_size][1,rho_size] range).
         bool[,] m_map;
@@ -162,10 +170,10 @@ namespace ImageProcessingCPU.Algorithms
         // Specifies the size of allocated storage for the map (theta dimention).
         int m_theta_capacity;
     }
-    class HoughTransform : IAlgoInterface
+    class HoughTransform : IAlgoInterface, IDisposable
     {
         Graphics g;
-        static Canny cannyEdge = new Canny(0,0.1,0.3);
+        Canny cannyEdge = new Canny(0, 0.1, 0.3);
         Bitmap actual;
         bool[,] m;
         int cluster_min_size = 5;
@@ -173,7 +181,12 @@ namespace ImageProcessingCPU.Algorithms
         readonly double delta;
         readonly double kernel_min_height;
         readonly double n_sigmas;
-        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 2)
+        int[,] gaussKernel = { { 1, 2, 1 }, { 2, 4, 2 }, { 1, 2, 1 } };
+        List<LinkedList<Pixel>> chains = new List<LinkedList<Pixel>>();
+        List<LinkedList<Pixel>> clusters = new List<LinkedList<Pixel>>();
+        Accumulator accumulator;
+        List<Line> lines = new List<Line>();
+        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 3)
         {
             actual = (Bitmap)a;
             g = Graphics.FromImage(actual);
@@ -182,6 +195,17 @@ namespace ImageProcessingCPU.Algorithms
             this.kernel_min_height = kernel_min_height;
             this.n_sigmas = n_sigmas;
             m = cannyEdge.matrixDirect(ref actual);
+        }
+        public void Dispose()
+        {
+            g = null;
+            cannyEdge = null;
+            actual = null;
+            m = null;
+            lines = null;
+            chains = null;
+            clusters = null;
+            accumulator = null;
         }
         //1. Identify clusters of approx. collinear feature pixels
         //1.a linking
@@ -251,14 +275,6 @@ namespace ImageProcessingCPU.Algorithms
             {
                 return 0;
             }
-            /* D. G. Lowe
-            * Three-dimensional object recognition from single two-dimensional images
-            * Artificial Intelligence, Elsevier, 31, 1987, pp. 355-395.
-            *
-            * Section 4.6
-            */
-
-
             Pixel first = chain.First.Value;
             Pixel last = chain.Last.Value;
 
@@ -312,7 +328,7 @@ namespace ImageProcessingCPU.Algorithms
             // Remove the sub-clusters from the list of clusters.
             if (clusters.Count > clusters_count)
             {
-                clusters.RemoveRange(Math.Max(clusters_count - 1,0), clusters.Count - clusters_count);
+                clusters.RemoveRange(Math.Max(clusters_count - 1, 0), clusters.Count - clusters_count);
             }
             // Keep current cluster
             LinkedList<Pixel> temp = new LinkedList<Pixel>();
@@ -461,11 +477,11 @@ namespace ImageProcessingCPU.Algorithms
         }
         double[] eigenValue(double[,] m)
         {
-            double b = -(m[0, 0] + m[1, 1]);
+            double b = m[0, 0] + m[1, 1];
             double c = m[0, 0] * m[1, 1] - m[0, 1] * m[1, 0];
             double[] r = new double[2];
-            r[0] = b - Math.Sqrt(b * b - 4 * c);
-            r[1] = b + Math.Sqrt(b * b - 4 * c);
+            r[0] = -(b + Math.Sqrt(b * b - 4 * c)) / 2;
+            r[1] = -(b - Math.Sqrt(b * b - 4 * c)) / 2;
             return r;
         }
         Vector2 eigenVector(float[,] m, float eV)
@@ -478,22 +494,38 @@ namespace ImageProcessingCPU.Algorithms
         }
         int convolution(ref double[,] bins, int rho_index, int theta_index)
         {
-            return (int)Math.Round(bins[theta_index - 1, rho_index - 1]
-                 + bins[theta_index - 1, rho_index + 1]
-                 + bins[theta_index + 1, rho_index - 1]
-                 + bins[theta_index + 1, rho_index + 1] +
-                   bins[theta_index - 1, rho_index] +
-                   bins[theta_index - 1, rho_index] +
-                   bins[theta_index, rho_index - 1] +
-                   bins[theta_index, rho_index - 1] +
-                   bins[theta_index, rho_index + 1] +
-                   bins[theta_index, rho_index + 1] +
-                   bins[theta_index + 1, rho_index] +
-                   bins[theta_index + 1, rho_index] +
-                   bins[theta_index, rho_index] +
-                   bins[theta_index, rho_index] +
-                   bins[theta_index, rho_index] +
-                   bins[theta_index, rho_index]);
+            double t = 0;
+            long offset = -1;
+            int n = bins.GetLength(0);
+            int m = bins.GetLength(1);
+            for (long i = 2; i > -1; i--)
+            {
+                for (long j = 2; j > -1; j--)
+                {
+                    long x = theta_index + i + offset;
+                    double tt;
+                    bool u = true;
+                    if (x >= n || x < 0)
+                    {
+                        u = false;
+                    }
+                    long y = rho_index + j + offset;
+                    if (y >= m || y < 0)
+                    {
+                        u = false;
+                    }
+                    if (u)
+                    {
+                        tt = bins[x, y];
+                    }
+                    else
+                    {
+                        tt = bins[theta_index, rho_index];
+                    }
+                    t += gaussKernel[i, j] * tt;
+                }
+            }
+            return (int)Math.Round(t);
         }
         //3. Vote for kernels with bigger contributions
         //3.a culling
@@ -690,13 +722,6 @@ namespace ImageProcessingCPU.Algorithms
         }
         void Peak_detection()
         {
-            /* Leandro A. F. Fernandes, Manuel M. Oliveira
-            * Real-time line detection through an improved Hough transform voting scheme
-            * Pattern Recognition (PR), Elsevier, 41:1, 2008, pp. 299-314.
-            *
-            * Section 3.4
-            */
-
             // Create a list with all cells that receive at least one vote.
             List<Bin> used_bins = new List<Bin>();
 
@@ -707,6 +732,7 @@ namespace ImageProcessingCPU.Algorithms
                     if (accumulator.bins[i, j] != 0)
                     {
                         used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
+                        //used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i,j])));
                     }
                 }
             }
@@ -714,9 +740,8 @@ namespace ImageProcessingCPU.Algorithms
             // Sort the list in descending order according to the result of the convolution.
             used_bins.Sort((x, y) => -x.votes.CompareTo(y.votes));
             // Use a sweep plane that visits each cell of the list.
-            VisitedMap visited = new VisitedMap();
-            visited.init(accumulator.m_width, accumulator.m_height);
-            
+            VisitedMap visited = new VisitedMap(accumulator.m_width, accumulator.m_height);
+
             foreach (Bin bin in used_bins)
             {
                 if (!visited.Visited_neighbour(bin.rho_index, bin.theta_index))
@@ -730,20 +755,9 @@ namespace ImageProcessingCPU.Algorithms
         {
             Point c = new Point(actual.Width / 2, actual.Height / 2);
             int count = 0;
-            double comparisonTheta = 0102301230;
             foreach (Line l in lines)
             {
-                /*
-                if(comparisonTheta < l.theta*1.2 && comparisonTheta > l.theta*0.8)
-                {
-                    continue;
-                }
-                else
-                {
-                    comparisonTheta = l.theta;
-                }
-                 */
-                if (count >= 15)
+                if (count >= 25)
                 {
                     break;
                 }
@@ -786,10 +800,6 @@ namespace ImageProcessingCPU.Algorithms
             }
 
         }
-        List<LinkedList<Pixel>> chains = new List<LinkedList<Pixel>>();
-        List<LinkedList<Pixel>> clusters = new List<LinkedList<Pixel>>();
-        Accumulator accumulator;
-        List<Line> lines = new List<Line>();
         public Image Apply(ref Image x)
         {
             accumulator = new Accumulator(x.Width, x.Height, delta);

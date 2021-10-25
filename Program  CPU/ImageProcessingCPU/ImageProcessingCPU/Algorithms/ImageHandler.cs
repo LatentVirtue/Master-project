@@ -105,7 +105,7 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            Canny x = new Canny(c, lT, uT);
+            using Canny x = new Canny(c, lT, uT);
             temporary = x.Apply(temporary);
             Refresh();
             return preview;
@@ -116,7 +116,7 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            Canny x = new Canny(c, 0.1, 0.3);
+            using Canny x = new Canny(c, 0.1, 0.3);
             temporary = x.EdgeEffect(temporary);
             Refresh();
             return preview;
@@ -127,7 +127,7 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            HoughTransform x = new HoughTransform(ref temporary);
+            using HoughTransform x = new HoughTransform(ref temporary);
             x.Apply(ref temporary);
             Refresh();
             return preview;
