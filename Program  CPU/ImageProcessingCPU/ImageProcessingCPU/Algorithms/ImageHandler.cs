@@ -49,7 +49,7 @@ namespace ImageProcessingCPU
         public static bool Save()
         {
             using SaveFileDialog dialog = new SaveFileDialog();
-            dialog.Filter = "Bitmap (*.BMP)| *.BMP";
+            dialog.Filter = "Bitmap (*.BMP)| *.BMP | JPG (*.JPG)| *.JPG";
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 factory.Load(temporary);
@@ -98,7 +98,6 @@ namespace ImageProcessingCPU
             Refresh();
             return preview;
         }
-
         public static Image Canny_test(int c, double lT, double uT)
         {
             if (!Check())

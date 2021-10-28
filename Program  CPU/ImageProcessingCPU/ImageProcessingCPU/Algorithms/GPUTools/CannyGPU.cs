@@ -178,54 +178,55 @@ namespace ImageProcessingCPU.Algorithms
             switch (switcher)
             {
                 case 0:
-                    offset1L = (-1, -1);
-                    offset1R = (-1, 0);
-                    offset2L = (1, 1);
-                    offset2R = (1, 0);
+                    offset1L = (-1, 0);
+                    offset1R = (-1, -1);
+                    offset2L = (1, 0);
+                    offset2R = (1, -1);
                     break;
                 case 1:
-                    offset1L = (0, -1);
-                    offset1R = (-1, -1);
-                    offset2L = (0, 1);
-                    offset2R = (1, 1);
-                    break;
-                case 2:
-                    offset1L = (1, -1);
-                    offset1R = (0, 1);
-                    offset2L = (-1, 1);
+                    offset1L = (-1, -1);
+                    offset1R = (0, -1);
+                    offset2L = (1, 1);
                     offset2R = (0, 1);
                     break;
-                case 3:
-                    offset1L = (1, 0);
+                case 2:
+                    offset1L = (0, -1);
                     offset1R = (1, -1);
-                    offset2L = (-1, 0);
+                    offset2L = (0, 1);
                     offset2R = (-1, 1);
                     break;
-                case 4:
-                    offset1L = (1, 1);
+                case 3:
+                    offset1L = (1, -1);
                     offset1R = (1, 0);
-                    offset2L = (-1, -1);
+                    offset2L = (-1, 1);
                     offset2R = (-1, 0);
                     break;
-                case 5:
-                    offset1L = (0, 1);
+                case 4:
+                    offset1L = (1, 0);
                     offset1R = (1, 1);
-                    offset2L = (0, -1);
+                    offset2L = (-1, 0);
                     offset2R = (-1, -1);
                     break;
-                case 6:
-                    offset1L = (-1, 1);
+                case 5:
+                    offset1L = (1, 1);
                     offset1R = (0, 1);
-                    offset2L = (1, -1);
+                    offset2L = (-1, -1);
                     offset2R = (0, -1);
                     break;
-                case 7:
-                    offset1L = (-1, 0);
+                case 6:
+                    offset1L = (0, 1);
                     offset1R = (-1, 1);
+                    offset2L = (0, -1);
+                    offset2R = (1, -1);
+                    break;
+                case 7:
+                    offset1L = (-1, 1);
+                    offset1R = (-1, 0);
                     offset2L = (1, 0);
                     offset2R = (1, -1);
                     break;
             }
+
             offset1L.Item1++;
             offset1L.Item2++;
             offset1R.Item1++;
@@ -242,127 +243,14 @@ namespace ImageProcessingCPU.Algorithms
                 l = r;
                 r = temp;
             }
-            double a = XMath.Max(actual[position.X + offset1L.Item1, position.Y + offset1L.Item2].D1 * l + actual[position.X + offset1R.Item1, position.Y + offset1R.Item2].D1 * r, actual[position.X + offset2L.Item1, position.Y + offset2L.Item2].D1 * l + actual[position.X + offset2R.Item1, position.Y + offset2R.Item2].D1 * r);
+            double a = XMath.Max(actual[position.X + offset1L.Item1, position.Y + offset1L.Item2].D1 * l +
+                actual[position.X + offset1R.Item1, position.Y + offset1R.Item2].D1 * r,
+                actual[position.X + offset2L.Item1, position.Y + offset2L.Item2].D1 * l +
+                actual[position.X + offset2R.Item1, position.Y + offset2R.Item2].D1 * r);
             if (actual[position.X + 1, position.Y + 1].D1 >= a)
             {
                 actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
             }
-
-            //this is the old and actual NMS
-            //linear interpolation
-
-            /*
-            if (angle > -45)
-            {
-                if (angle > 0)
-                {
-                    if (angle > 45)
-                    {
-                        if (angle > 90)
-                        {
-                            if (angle > 135)
-                            {
-                                //135 to 180 1
-                                double l = (angle - 135) / 45;
-                                double r = 1 - l;
-                                double a = XMath.Max(actual[position.X, position.Y].D1 * l + actual[position.X, position.Y + 1].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 2, position.Y + 1].D1 * r);
-                                if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                                {
-                                    actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                                }
-                            }
-                            else
-                            {
-                                //90 to 135 1
-                                //main diagonal
-                                double l = (actual[position].D2 - 90) / 45;
-                                double r = 1 - l;
-                                double a = XMath.Max(actual[position.X + 1, position.Y + 2].D1 * l + actual[position.X + 2, position.Y + 2].D1 * r, actual[position.X + 1, position.Y].D1 * l + actual[position.X, position.Y].D1 * r);
-                                if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                                {
-                                    actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            //45 to 90 1
-                            //side diagonal
-                            double l = (angle - 45) / 45;
-                            double r = 1 - l;
-                            double a = XMath.Max(actual[position.X, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r, actual[position.X + 2, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r);
-                            if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                            {
-                                actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        //0 to 45 1
-                        //vertical right
-                        double l = angle / 45;
-                        double r = 1 - l;
-                        double a = XMath.Max(actual[position.X, position.Y + 1].D1 * l + actual[position.X, position.Y + 2].D1 * r, actual[position.X + 2, position.Y + 1].D1 * l + actual[position.X + 2, position.Y].D1 * r);
-                        if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                        {
-                            actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                        }
-                    }
-                }
-                else
-                {
-                    //-45 to 0 1
-                    //vertical left
-                    double l = (-45 - angle) / -45;
-                    double r = 1 - l;
-                    double a = XMath.Max(actual[position.X, position.Y].D1 * l + actual[position.X, position.Y + 1].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 2, position.Y + 1].D1 * r);
-                    if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                    {
-                        actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                    }
-                }
-            }
-            else
-            {
-                if (angle < -90)
-                {
-                    if (angle < -135)
-                    {
-                        //-180 to -135 1
-                        double l = (angle + 135) / -45;
-                        double r = 1 - l;
-                        double a = XMath.Max(actual[position.X, position.Y + 1].D1 * r + actual[position.X, position.Y + 2].D1 * l, actual[position.X + 2, position.Y + 1].D1 * r + actual[position.X + 2, position.Y].D1 * l);
-                        if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                        {
-                            actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                        }
-                    }
-                    else
-                    {
-                        //-135 to -90 1
-                        double l = (angle + 90) / -45;
-                        double r = 1 - l;
-                        double a = XMath.Max(actual[position.X + 1, position.Y + 2].D1 * l + actual[position.X, position.Y + 2].D1 * r, actual[position.X + 1, position.Y].D1 * l + actual[position.X + 2, position.Y].D1 * r);
-                        if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                        {
-                            actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                        }
-                    }
-                }
-                else
-                {
-                    //-90 to -45
-                    double l = (angle + 45) / -45;
-                    double r = 1 - l;
-                    double a = XMath.Max(actual[position.X, position.Y].D1 * l + actual[position.X + 1, position.Y].D1 * r, actual[position.X + 2, position.Y + 2].D1 * l + actual[position.X + 1, position.Y + 2].D1 * r);
-                    if (actual[position.X + 1, position.Y + 1].D1 >= a)
-                    {
-                        actual[position.X + 1, position.Y + 1].D3 = actual[position.X + 1, position.Y + 1].D1;
-                    }
-                }
-            }
-            */
         }
         static void TresholdKernel(Index2 position, ArrayView2D<TroupleDouble> actual, ArrayView2D<byte> final, double max, double lowerT, double upperT)
         {
