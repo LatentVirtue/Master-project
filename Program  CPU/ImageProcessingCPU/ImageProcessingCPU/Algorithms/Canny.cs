@@ -440,24 +440,26 @@ namespace ImageProcessingCPU.Algorithms
                 return res;
             }
         }
-        public Image EdgeEffect(Image x)
+        public Image EdgeEffect(Image x, bool blur)
         {
-            int[,] sobelX = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
-            int[,] sobelY = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
-            actual = (Bitmap)x;
-            GaussianFilter();
-            Bitmap temp = new Bitmap(actual);
-            int[,] Gx = Convolve(ref temp, sobelX);
-            int[,] Gy = Convolve(ref temp, sobelY);
-            ComputeGradient(ref Gx, ref Gy);
-            Bitmap res = new Bitmap(gIntensity.GetLength(1), gIntensity.GetLength(0), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            double max = gIntensity.Cast<double>().Max();
-            for (int i = 0; i < gIntensity.GetLength(0); i++)
+            Bitmap temp = (Bitmap)x;
+            Bitmap res = new Bitmap(x.Width, x.Height);
+            CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[x.Height, x.Width];
+            for (int i = 0; i < x.Height; i++)
             {
-                for (int j = 0; j < gIntensity.GetLength(1); j++)
+                for (int j = 0; j < x.Width; j++)
+                {
+                    target[i, j] = new CannyGPU.TroupleDouble(temp.GetPixel(j, i));
+                }
+            }
+            double[,] gradientHelp = CannyGPU.edgefix(selectedKernel, target, blur);
+            double max = gradientHelp.Cast<double>().Max();
+            for (int i = 0; i < gradientHelp.GetLength(0); i++)
+            {
+                for (int j = 0; j < gradientHelp.GetLength(1); j++)
                 {
                     Color t = temp.GetPixel(j, i);
-                    double ins = (gIntensity[i, j] / max) * 3;
+                    double ins = (gradientHelp[i, j] / max) * 3;
                     int red = Math.Clamp((int)(t.R * ins), 0, 255);
                     int green = Math.Clamp((int)(t.G * ins), 0, 255);
                     int blue = Math.Clamp((int)(t.B * ins), 0, 255);
@@ -565,7 +567,7 @@ namespace ImageProcessingCPU.Algorithms
             {
                 return null;
             }
-            actual = (Bitmap)x;
+            actual = x;
             //ToGrayscale();
             //GaussianFilter();
             //GradientGPU();

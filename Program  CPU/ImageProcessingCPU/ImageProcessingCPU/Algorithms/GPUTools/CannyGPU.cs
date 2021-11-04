@@ -74,7 +74,12 @@ namespace ImageProcessingCPU.Algorithms
         //ILGPU context and accelerator
         static void GrayscaleKernel(Index2 position, ArrayView2D<TroupleDouble> actual)
         {
-            actual[position].D1 = (actual[position].D1 + actual[position].D2 + actual[position].D3) / 3.0;
+            double y = (actual[position].D1 * 0.2126 + actual[position].D2 * 0.7152 + actual[position].D3 * 0.0722);
+            actual[position].D1 = y <= 0.0031308 ? y * 12.92 : 1.055 * XMath.Pow(y, 1 / 2.4) - 0.055;
+        }
+        static void GrayscaleKernel2(Index2 position, ArrayView2D<TroupleDouble> actual)
+        {
+            actual[position].D2 = (actual[position].D1 + actual[position].D2 + actual[position].D3) / 3.0;
         }
         static void GaussKernel(Index2 position, ArrayView2D<TroupleDouble> actual, ArrayView2D<double> gaussKernel, int n, int m)
         {
@@ -438,6 +443,85 @@ namespace ImageProcessingCPU.Algorithms
             k(new Index2(target.GetLength(0), target.GetLength(1)), bufferKernel.View, bufferTarget.View, bufferFinal.View);
             cuda.Synchronize();
             target = bufferFinal.GetAs2DArray();
+        }
+        public static double[,] edgefix(int selectedKernel, TroupleDouble[,] actual, bool blur)
+        {
+            switch (selectedKernel)
+            {
+                case 1:
+                    Xfilter = prewittX;
+                    Yfilter = prewittY;
+                    break;
+                case 2:
+                    Xfilter = robertsX;
+                    Yfilter = robertsY;
+                    break;
+                case 3:
+                    Xfilter = scharrX;
+                    Yfilter = scharrY;
+                    break;
+                default:
+                    Xfilter = sobelX;
+                    Yfilter = sobelY;
+                    break;
+            }
+            n = actual.GetLength(0);
+            m = actual.GetLength(1);
+            //init
+            using var context = new Context();
+            context.EnableAlgorithms();
+            using var cuda = new CudaAccelerator(context);
+            using var bufferMain = cuda.Allocate(actual);
+            if (blur)
+            {
+                var k555 = cuda.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<TroupleDouble>>(GrayscaleKernel);
+                k555(new Index2(n, m), bufferMain.View);
+                cuda.Synchronize();
+                k555 = null;
+                //gauss
+                //saves values to D2
+                var k2 = cuda.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<TroupleDouble>, ArrayView2D<double>, int, int>(GaussKernel);
+                var bufferHelper2 = cuda.Allocate(gaussianMatrix);
+                k2(new Index2(n, m), bufferMain.View, bufferHelper2.View, n, m);
+                cuda.Synchronize();
+                k2 = null;
+            }
+            else
+            {
+                //grayscale
+                //saves values to D2
+                var k555 = cuda.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<TroupleDouble>>(GrayscaleKernel2);
+                k555(new Index2(n, m), bufferMain.View);
+                cuda.Synchronize();
+                k555 = null;
+            }
+            //gradient
+            //Gx is on D1, Gy is on D3
+            var k3 = cuda.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<TroupleDouble>, ArrayView2D<double>, bool, int, int>(GradientConvolutionKernel);
+            //Gx
+            var bufferHelper = cuda.Allocate(Xfilter);
+            k3(new Index2(n, m), bufferMain.View, bufferHelper.View, true, n, m);
+            cuda.Synchronize();
+            //Gy
+            using var bufferHelper1 = cuda.Allocate(Yfilter);
+            k3(new Index2(n, m), bufferMain.View, bufferHelper1.View, false, n, m);
+            cuda.Synchronize();
+            k3 = null;
+            //computeGradient
+            //Gradient intensity is on D1, gradient angle is on D2
+            var k1 = cuda.LoadAutoGroupedStreamKernel<Index2, ArrayView2D<TroupleDouble>>(ComputeGradientKernel);
+            k1(new Index2(n, m), bufferMain.View);
+            cuda.Synchronize();
+            double[,] r = new double[n, m];
+            actual = bufferMain.GetAs2DArray();
+            for(int i = 0; i < n; i++)
+            {
+                for(int j = 0; j < m; j++)
+                {
+                    r[i, j] = actual[i, j].D1;
+                }
+            }
+            return r;
         }
     }
 }

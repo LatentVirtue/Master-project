@@ -42,6 +42,7 @@ namespace ImageProcessingCPU
             this.label3 = new System.Windows.Forms.Label();
             this.textBoxLowerT = new System.Windows.Forms.TextBox();
             this.textBoxUpperT = new System.Windows.Forms.TextBox();
+            this.checkBlur = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).BeginInit();
             this.SuspendLayout();
             // 
@@ -172,11 +173,23 @@ namespace ImageProcessingCPU
             this.textBoxUpperT.Text = "0.3";
             this.textBoxUpperT.TextChanged += new System.EventHandler(this.textBoxUpperT_TextChanged);
             // 
+            // checkBlur
+            // 
+            this.checkBlur.AutoSize = true;
+            this.checkBlur.Location = new System.Drawing.Point(718, 415);
+            this.checkBlur.Name = "checkBlur";
+            this.checkBlur.Size = new System.Drawing.Size(47, 19);
+            this.checkBlur.TabIndex = 13;
+            this.checkBlur.Text = "Blur";
+            this.checkBlur.UseVisualStyleBackColor = true;
+            this.checkBlur.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(799, 450);
+            this.Controls.Add(this.checkBlur);
             this.Controls.Add(this.textBoxUpperT);
             this.Controls.Add(this.textBoxLowerT);
             this.Controls.Add(this.label3);
@@ -214,6 +227,7 @@ namespace ImageProcessingCPU
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.TextBox textBoxLowerT;
         private System.Windows.Forms.TextBox textBoxUpperT;
+        private System.Windows.Forms.CheckBox checkBlur;
     }
 }
 

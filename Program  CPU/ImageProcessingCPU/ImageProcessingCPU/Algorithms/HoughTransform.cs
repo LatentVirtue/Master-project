@@ -9,6 +9,24 @@ namespace ImageProcessingCPU.Algorithms
 {
     struct Pixel
     {
+        public int x_index;
+        public int y_index;
+
+        public double x;
+        public double y;
+
+        public Pixel(int x_i, int y_i, double xx, double yy)
+        {
+            x = xx;
+            y = yy;
+            x_index = x_i;
+            y_index = y_i;
+        }
+    }
+
+    /*
+     struct Pixel
+    {
         public int x;
         public int y;
         public bool val;
@@ -24,6 +42,7 @@ namespace ImageProcessingCPU.Algorithms
             return new Vector2(x, y);
         }
     }
+     */
 
     struct Kernel
     {
@@ -32,9 +51,10 @@ namespace ImageProcessingCPU.Algorithms
         public double[] lambda;
         public int rho_index;
         public int theta_index;
+        public LinkedList<Pixel> cluster;
 
         public double height;
-        public Kernel(double rho, double theta, double[] lambda, int rho_index, int theta_index, double height)
+        public Kernel(double rho, double theta, double[] lambda, int rho_index, int theta_index, double height, LinkedList<Pixel> cluster)
         {
             this.rho = rho;
             this.theta = theta;
@@ -42,9 +62,9 @@ namespace ImageProcessingCPU.Algorithms
             this.rho_index = rho_index;
             this.theta_index = theta_index;
             this.height = height;
+            this.cluster = cluster;
         }
     }
-    //found in their implementation, will decide if necessary
     class Accumulator
     {
         public int m_image_width = 0;
@@ -54,11 +74,11 @@ namespace ImageProcessingCPU.Algorithms
         public int m_width = 0;
         public int m_height = 0;
         public double[] m_ro;
-        public double robounds1 = 0;
-        public double robounds2 = 0;
+        public double roboundsLow = 0;
+        public double roboundsHigh = 0;
         public double[] m_theta;
-        public double thetabounds1 = 0;
-        public double thetabounds2 = 0;
+        public double thetaboundsLow = 0;
+        public double thetaboundsHigh= 0;
         public double[,] bins;
         public Accumulator(int image_width = 0, int image_height = 0, double delta = 0)
         {
@@ -82,8 +102,8 @@ namespace ImageProcessingCPU.Algorithms
                 }
                 m_ro[0] = m_ro[m_width];
                 m_ro[m_width + 1] = m_ro[1];
-                robounds1 = -0.5 * r;
-                robounds2 = 0.5 * r;
+                roboundsLow = -0.5 * r;
+                roboundsHigh = 0.5 * r;
 
                 m_height = (int)(180 / delta);
                 m_theta = new double[m_height + 2];
@@ -94,8 +114,8 @@ namespace ImageProcessingCPU.Algorithms
                 }
                 m_theta[0] = m_theta[m_height];
                 m_theta[m_height + 1] = m_theta[1];
-                thetabounds1 = 0.0;
-                thetabounds2 = 180 - delta;
+                thetaboundsLow = 0.0;
+                thetaboundsHigh = 180 - delta;
                 bins = new double[m_height + 2, m_width + 2];
             }
         }
@@ -186,10 +206,18 @@ namespace ImageProcessingCPU.Algorithms
         List<LinkedList<Pixel>> clusters = new List<LinkedList<Pixel>>();
         Accumulator accumulator;
         List<Line> lines = new List<Line>();
-        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 3)
+        List<Kernel> used_kernels;
+        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 2, Graphics gg = null)
         {
             actual = (Bitmap)a;
-            g = Graphics.FromImage(actual);
+            if (gg == null)
+            {
+                g = Graphics.FromImage(actual);
+            }
+            else
+            {
+                g = gg;
+            }
             this.cluster_min_deviation = cluster_min_deviation;
             this.delta = delta;
             this.kernel_min_height = kernel_min_height;
@@ -210,7 +238,8 @@ namespace ImageProcessingCPU.Algorithms
         //1. Identify clusters of approx. collinear feature pixels
         //1.a linking
         //1.b subdivision
-        LinkedList<Pixel> Link(Pixel pr)
+        /*
+        LinkedList<Pixel> LinkOld(Pixel pr)
         {
             LinkedList<Pixel> S = new LinkedList<Pixel>();
             Pixel p = pr;
@@ -228,9 +257,9 @@ namespace ImageProcessingCPU.Algorithms
                 p = Next(p);
             }
             return S;
-        }
+        }*/
         //Complementing Link()
-        Pixel Next(Pixel ps)
+        /*Pixel NextOld(Pixel ps)
         {
             for (int i = -1; i < 2; i++)
             {
@@ -251,8 +280,78 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             return new Pixel(-1, -1, false);
+        }*/
+        int[] X_OFFSET = { 0, 1, 0, -1, 1, -1, -1, 1 };
+        int[] Y_OFFSET = { 1, 0, -1, 0, 1, 1, -1, -1 };
+        bool Next(ref int x_seed, ref int y_seed)
+        {
+            for (int i = 0; i != 8; ++i)
+            {
+                int x = x_seed + X_OFFSET[i];
+                if (0 <= x && x < actual.Width)
+                {
+                    int y = y_seed + Y_OFFSET[i];
+                    if (0 <= y && y < actual.Height)
+                    {
+                        if (m[x, y])
+                        {
+                            m[x, y] = false;
+                            x_seed = x;
+                            y_seed = y;
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
-        void Find_chains(int image_width, int image_height, int min_size)
+        void Link(ref LinkedList<Pixel> chain, int x_ref, int y_ref)
+        {
+            chain.Clear();
+            int x = x_ref;
+            int y = y_ref;
+
+            do
+            {
+                //Pixel t = new Pixel(x, y, x - actual.Width / 2.0, y - actual.Height / 2.0);
+                Pixel t = new Pixel(y, x, y - actual.Height / 2.0, x - actual.Width / 2.0);
+                chain.AddFirst(t);
+            } while (Next(ref x, ref y));
+
+            x = x_ref;
+            y = y_ref;
+            if (Next(ref x, ref y))
+            {
+                do
+                {
+                    //Pixel t = new Pixel(x, y, x - actual.Width / 2.0, y - actual.Height / 2.0);
+                    Pixel t = new Pixel(y, x, y - actual.Height / 2.0, x - actual.Width / 2.0);
+                    chain.AddLast(t);
+                } while (Next(ref x, ref y));
+            }
+        }
+
+        void Find_chains()
+        {
+            for (int y = 1, y_end = actual.Height - 1; y != y_end; ++y)
+            {
+                for (int x = 1, x_end = actual.Width - 1; x != x_end; ++x)
+                {
+                    if (m[x, y])
+                    {
+                        LinkedList<Pixel> chain = new LinkedList<Pixel>();
+                        Link(ref chain, x, y);
+                        if (chain.Count >= cluster_min_size)
+                        {
+                            chains.Add(chain);
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+        void Find_chainsOld(int image_width, int image_height, int min_size)
         {
             for (int y = 0; y < image_height; y++)
             {
@@ -268,9 +367,10 @@ namespace ImageProcessingCPU.Algorithms
                     }
                 }
             }
-        }
-        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, LinkedList<Pixel> chain, int first_index, int last_index)
+        }*/
+        double Subdivision_procedure(ref List<LinkedList<Pixel>> clusters, ref LinkedList<Pixel> chain, int first_index, int last_index)
         {
+            int clusters_count = clusters.Count;
             if (chain.Count == 0)
             {
                 return 0;
@@ -279,8 +379,8 @@ namespace ImageProcessingCPU.Algorithms
             Pixel last = chain.Last.Value;
 
             // Compute the length of the straight line segment defined by the endpoints of the cluster.
-            int y = first.y - last.y;
-            int x = first.x - last.x;
+            int y = first.y_index - last.y_index;
+            int x = first.x_index - last.x_index;
             double length = Math.Sqrt(x * x + y * y);
 
             // Find the pixels with maximum deviation from the line segment in order to subdivide the cluster.
@@ -289,7 +389,7 @@ namespace ImageProcessingCPU.Algorithms
             LinkedListNode<Pixel> t = chain.First;
             if (last_index > chain.Count)
             {
-                last_index = chain.Count;
+                //last_index = chain.Count;
             }
             for (int i = first_index, count = chain.Count; i != last_index; i = (i + 1) % count)
             {
@@ -312,12 +412,11 @@ namespace ImageProcessingCPU.Algorithms
             {
                 return ratio;
             }
-            int clusters_count = clusters.Count;
             // Test the number of pixels of the sub-clusters.
             if ((max_pixel_index - first_index + 1) >= cluster_min_size && (last_index - max_pixel_index + 1) >= cluster_min_size)
             {
-                double ratio1 = Subdivision_procedure(ref clusters, chain, first_index, max_pixel_index);
-                double ratio2 = Subdivision_procedure(ref clusters, chain, max_pixel_index, last_index);
+                double ratio1 = Subdivision_procedure(ref clusters, ref chain, first_index, max_pixel_index);
+                double ratio2 = Subdivision_procedure(ref clusters, ref chain, max_pixel_index, last_index);
 
                 // Test the quality of the sub-clusters against the quality of the current cluster.
                 if (ratio1 > ratio || ratio2 > ratio)
@@ -326,10 +425,7 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             // Remove the sub-clusters from the list of clusters.
-            if (clusters.Count > clusters_count)
-            {
-                clusters.RemoveRange(Math.Max(clusters_count - 1, 0), clusters.Count - clusters_count);
-            }
+            clusters.RemoveRange(clusters_count, clusters.Count - clusters_count);
             // Keep current cluster
             LinkedList<Pixel> temp = new LinkedList<Pixel>();
             var c = chain.First;
@@ -352,12 +448,14 @@ namespace ImageProcessingCPU.Algorithms
         {
             for (int i = 0; i < chains.Count; i++)
             {
-                Subdivision_procedure(ref clusters, chains[i], 0, chains[i].Count - 1);
+                var chain = chains[i];
+                Subdivision_procedure(ref clusters, ref chain, 0, chains[i].Count - 1);
+                chains[i] = chain;
             }
         }
         //2. Compute an elliptical kernel for each cluster from its line fitting uncertainty
 
-        Kernel ComputeKernel(LinkedList<Pixel> cluster, double rho_max, double one_div_delta)
+        Kernel ComputeKernelOld(LinkedList<Pixel> cluster, double rho_max, double one_div_delta)
         {
             double one_div_npixels = 1 / (double)(cluster.Count);
 
@@ -396,14 +494,13 @@ namespace ImageProcessingCPU.Algorithms
                 v.Y *= -1;
             }
 
-            // Normal equation parameters computation (Eq. 3).
+            // Normal equation parameters computation 
             double rho = v.X * mean_x + v.Y * mean_y;
             double theta = Math.Acos(v.X) * (180 / Math.PI);
-
             int rho_index = (int)(Math.Abs((rho + rho_max) * one_div_delta)) + 1;
             int theta_index = (int)(Math.Abs(theta * one_div_delta)) + 1;
 
-            // sigma^2_m' and sigma^2_b' computation, substituting Eq. 5 in Eq. 10.
+            // sigma^2_m' and sigma^2_b' computation
             double aux = Math.Sqrt(1.0 - v.X * v.X);
             double[] nabla = { -(u.X * mean_x + u.Y * mean_y), 1.0, aux != 0.0 ? (u.X / aux) * (180 / Math.PI) : 0.0, 0.0 };
 
@@ -431,7 +528,80 @@ namespace ImageProcessingCPU.Algorithms
             double height = Gauss(0.0, 0.0, lambda[0], lambda[3], lambda[1]);
 
             // Keep kernel.
-            return new Kernel(rho, theta, lambda, rho_index, theta_index, height);
+            return new Kernel(rho, theta, lambda, rho_index, theta_index, height, cluster);
+        }
+
+        Kernel ComputeKernel(LinkedList<Pixel> cluster, double rho_max, double one_div_delta)
+        {
+            double one_div_npixels = 1 / (double)(cluster.Count);
+
+            // Alternative reference system definition.
+            double mean_x = 0.0;
+            double mean_y = 0.0;
+            foreach (Pixel p in cluster)
+            {
+                mean_x += p.x;
+                mean_y += p.y;
+            }
+            mean_x *= one_div_npixels;
+            mean_y *= one_div_npixels;
+            double[] M = new double[4];
+            double[] V = new double[4];
+            double[] S = new double[4];
+            foreach (Pixel p in cluster)
+            {
+                double x = p.x - mean_x;
+                double y = p.y - mean_y;
+
+                M[0] += x * x;
+                M[3] += y * y;
+                M[1] += x * y;
+            }
+            M[2] = M[1];
+
+            eigen(ref V, ref S, ref M);
+            // y_v >= 0 condition verification.
+            if (V[3] < 0.0)
+            {
+                V[1] *= -1.0;
+                V[3] *= -1.0;
+            }
+
+            // Normal equation parameters computation 
+            double rho = V[1] * mean_x + V[3] * mean_y;
+            double theta = Math.Acos(V[1]) * (180 / Math.PI);
+            int rho_index = (int)(Math.Abs((rho + rho_max) * one_div_delta)) + 1;
+            int theta_index = (int)(Math.Abs(theta * one_div_delta)) + 1;
+
+            // sigma^2_m' and sigma^2_b' computation
+            double aux = Math.Sqrt(1.0 - V[1] * V[3]);
+            double[] nabla = { -(V[0] * mean_x + V[2] * mean_y), 1.0, aux != 0.0 ? (V[0] / aux) * (180 / Math.PI) : 0.0, 0.0 };
+
+            aux = 0.0;
+            foreach (Pixel p in cluster)
+            {
+                double x = V[0] * (p.x - mean_x) + (V[2] * (p.y - mean_y));
+                aux += x * x;
+            }
+
+            double[] lambda = { 1.0 / aux, 0.0, 0.0, one_div_npixels };
+
+            // Uncertainty from sigma^2_m' and sigma^2_b' to sigma^2_rho,  sigma^2_theta and sigma_rho_theta.
+            Solve(ref lambda, ref nabla, ref lambda);
+
+            if (lambda[3] == 0.0)
+            {
+                lambda[3] = 0.1;
+            }
+
+            lambda[0] *= n_sigmas * n_sigmas;
+            lambda[3] *= n_sigmas * n_sigmas;
+
+            // Compute the height of the kernel.
+            double height = Gauss(0.0, 0.0, lambda[0], lambda[3], lambda[1]);
+
+            // Keep kernel.
+            return new Kernel(rho, theta, lambda, rho_index, theta_index, height, cluster);
         }
         //helper function for 2x2 matrix addition / subtraction
         int[,] TbTOperations(int[,] a, int[,] b, char operation)
@@ -475,6 +645,203 @@ namespace ImageProcessingCPU.Algorithms
             r[1] = (float)(b + Math.Sqrt(b * b - 4 * c));
             return r;
         }
+        //alternative eigen decomposition
+        void tri_diagonalize(ref double[] Cxd, ref double[] d, ref double[] e, ref double[] A, int L, double tol)
+        {
+            int i, j, k, l;
+            double f, g, h, hh;
+            for (i = 0; i < L; i++)
+            {
+                for (j = 0; j <= i; j++)
+                {
+                    A[i * L + j] = Cxd[i * L + j];
+                }
+            }
+            for (i = L - 1; i > 0; i--)
+            {
+                l = i - 2;
+                f = A[i * L + i - 1];
+                g = 0.0;
+                for (k = 0; k <= l; k++)
+                {
+                    g += A[i * L + k] * A[i * L + k];
+                }
+                h = g + f * f;
+                if (g <= tol)
+                {
+                    e[i] = f;
+                    h = 0.0;
+                    d[i] = h;
+                    continue;
+                }
+                l++;
+                g = Math.Sqrt(h);
+                if (f >= 0.0) g = -g;
+                e[i] = g;
+                h = h - f * g;
+                A[i * L + i - 1] = f - g;
+                f = 0.0;
+                for (j = 0; j <= l; j++)
+                {
+                    A[j * L + i] = A[i * L + j] / h;
+                    g = 0.0;
+                    for (k = 0; k <= j; k++)
+                    {
+                        g += A[j * L + k] * A[i * L + k];
+                    }
+                    for (k = j + 1; k <= l; k++)
+                    {
+                        g += A[k * L + j] * A[i * L + k];
+                    }
+                    e[j] = g / h;
+                    f += g * A[j * L + i];
+                }
+                hh = f / (h + h);
+                for (j = 0; j <= l; j++)
+                {
+                    f = A[i * L + j];
+                    g = e[j] - hh * f;
+                    e[j] = g;
+                    for (k = 0; k <= j; k++)
+                    {
+                        A[j * L + k] = A[j * L + k] - f * e[k] - g * A[i * L + k];
+                    }
+                }
+                d[i] = h;
+            }
+            d[0] = e[0] = 0.0;
+            for (i = 0; i < L; i++)
+            {
+                l = i - 1;
+                if (d[i] != 0.0)
+                {
+                    for (j = 0; j <= l; j++)
+                    {
+                        g = 0.0;
+                        for (k = 0; k <= l; k++)
+                        {
+                            g += A[i * L + k] * A[k * L + j];
+                        }
+                        for (k = 0; k <= l; k++)
+                        {
+                            A[k * L + j] = A[k * L + j] - g * A[k * L + i];
+                        }
+                    }
+                }
+                d[i] = A[i * L + i];
+                A[i * L + i] = 1.0;
+                for (j = 0; j <= l; j++)
+                {
+                    A[i * L + j] = A[j * L + i] = 0.0;
+                }
+            }
+        }
+        int calc_eigenstructure(ref double[] d, ref double[] e, ref double[] A, int L, double macheps)
+        {
+            int i, j, k, l, m;
+            double b, c, f, g, h, p, r, s;
+
+            for (i = 1; i < L; i++) e[i - 1] = e[i];
+            e[L - 1] = b = f = 0.0;
+            for (l = 0; l < L; l++)
+            {
+                h = macheps * (Math.Abs(d[l]) + Math.Abs(e[l]));
+                if (b < h) b = h;
+                for (m = l; m < L; m++)
+                {
+                    if (Math.Abs(e[m]) <= b) break;
+                }
+                j = 0;
+                if (m != l)
+                {
+                    do
+                    {
+                        if (j++ == 30) return -1;
+                        p = (d[l + 1] - d[l]) / (2.0 * e[l]);
+                        r = Math.Sqrt(p * p + 1);
+                        h = d[l] - e[l] / (p + (p < 0.0 ? -r : r));
+                        for (i = l; i < L; i++) d[i] = d[i] - h;
+                        f += h;
+                        p = d[m];
+                        c = 1.0;
+                        s = 0.0;
+                        for (i = m - 1; i >= l; i--)
+                        {
+                            g = c * e[i];
+                            h = c * p;
+                            if (Math.Abs(p) >= Math.Abs(e[i]))
+                            {
+                                c = e[i] / p;
+                                r = Math.Sqrt(c * c + 1);
+                                e[i + 1] = s * p * r;
+                                s = c / r;
+                                c = 1.0 / r;
+                            }
+                            else
+                            {
+                                c = p / e[i];
+                                r = Math.Sqrt(c * c + 1);
+                                e[i + 1] = s * e[i] * r;
+                                s = 1.0 / r;
+                                c = c / r;
+                            }
+                            p = c * d[i] - s * g;
+                            d[i + 1] = h + s * (c * g + s * d[i]);
+                            for (k = 0; k < L; k++)
+                            {
+                                h = A[k * L + i + 1];
+                                A[k * L + i + 1] = s * A[k * L + i] + c * h;
+                                A[k * L + i] = c * A[k * L + i] - s * h;
+                            }
+                        }
+                        e[l] = s * p;
+                        d[l] = c * p;
+                    }
+                    while (Math.Abs(e[l]) > b);
+                }
+                d[l] = d[l] + f;
+            }
+
+            /* order the eigenvectors  */
+            for (i = 0; i < L; i++)
+            {
+                k = i;
+                p = d[i];
+                for (j = i + 1; j < L; j++)
+                {
+                    if (d[j] > p)
+                    {
+                        k = j;
+                        p = d[j];
+                    }
+                }
+                if (k != i)
+                {
+                    d[k] = d[i];
+                    d[i] = p;
+                    for (j = 0; j < L; j++)
+                    {
+                        p = A[j * L + i];
+                        A[j * L + i] = A[j * L + k];
+                        A[j * L + k] = p;
+                    }
+                }
+            }
+            return 0;
+        }
+
+        // Computes the decomposition of a matrix into matrices composed of its eigenvectors and eigenvalues.
+        void eigen(ref double[] vectors, ref double[] values, ref double[] matrix)
+        {
+            double[] temp = new double[2];
+
+            tri_diagonalize(ref matrix, ref values, ref temp, ref vectors, 2, 1.0e-6);
+            calc_eigenstructure(ref values, ref temp, ref vectors, 2, 1.0e-16);
+
+            values[3] = values[1];
+            values[1] = values[2] = 0.0;
+        }
+
         double[] eigenValue(double[,] m)
         {
             double b = m[0, 0] + m[1, 1];
@@ -576,6 +943,7 @@ namespace ImageProcessingCPU.Algorithms
             //int rho_size = accumulator.m_width;
             //int theta_size = accumulator.m_height;
             //double delta = accumulator.m_delta;
+            var bins = accumulator.bins;
             double inc_rho = delta * inc_rho_index, inc_theta = delta * inc_theta_index;
 
             double sigma_rho_sigma_theta = Math.Sqrt(sigma2_rho * sigma2_theta);
@@ -628,33 +996,16 @@ namespace ImageProcessingCPU.Algorithms
         }
         void Voting(double kernel_min_height)
         {
-            /* Leandro A. F. Fernandes, Manuel M. Oliveira
-            * Real-time line detection through an improved Hough transform voting scheme
-            * Pattern Recognition (PR), Elsevier, 41:1, 2008, pp. 299-314.
-            *
-            * Algorithm 2
-            */
             List<Kernel> kernels;
-            List<Kernel> used_kernels;
+
 
             kernels = new List<Kernel>();
             used_kernels = new List<Kernel>();
-            //double Sxx = M[0], Syy = M[3], Sxy = M[1], Syx = M[2];
-            //double u_x = V[0], u_y = V[2];
-            //double v_x = V[1], v_y = V[3];
-
 
             foreach (LinkedList<Pixel> cluster in clusters)
             {
-                kernels.Add(ComputeKernel(cluster, accumulator.robounds2, 1.0 / accumulator.m_delta));
+                kernels.Add(ComputeKernel(cluster, accumulator.roboundsHigh, 1.0 / accumulator.m_delta));
             }
-
-            /* Leandro A. F. Fernandes, Manuel M. Oliveira
-            * Real-time line detection through an improved Hough transform voting scheme
-            * Pattern Recognition (PR), Elsevier, 41:1, 2008, pp. 299-314.
-            *
-            * Algorithm 3
-            */
 
             // Discard groups with very short kernels.
             double norm = double.MinValue;
@@ -668,7 +1019,7 @@ namespace ImageProcessingCPU.Algorithms
             }
             norm = 1.0 / norm;
             int i = 0;
-            for (int k = 0; k < used_kernels.Count; k++)
+            for (int k = 0; k < used_kernels.Count; ++k)
             {
                 if (kernels[k].height * norm >= kernel_min_height)
                 {
@@ -687,24 +1038,20 @@ namespace ImageProcessingCPU.Algorithms
             }
             // Find the g_min threshold and compute the scale factor for integer votes.
             double kernels_scale = double.MinValue;
-            foreach (Kernel kernel in used_kernels)
+            for (int j = 0; j < used_kernels.Count; j++)
             {
-                //eigen(V, S, kernels[j].lambda);
-                double[] temp = eigenValue(new double[,] { { kernel.lambda[0], kernel.lambda[1] }, { kernel.lambda[2], kernel.lambda[3] } });
-                Vector2 t1 = eigenVector(new double[,] { { kernel.lambda[0], kernel.lambda[1] }, { kernel.lambda[2], kernel.lambda[3] } }, temp[0]);
-                Vector2 t2 = eigenVector(new double[,] { { kernel.lambda[0], kernel.lambda[1] }, { kernel.lambda[2], kernel.lambda[3] } }, temp[1]);
-                Vector2 u = temp[0] > temp[1] ? t1 : t2;
-                Vector2 v = temp[0] > temp[1] ? t2 : t1;
-                /*
-                double u_x = V[0];
-                double u_y = V[1];
-                double v_x = V[2];
-                double v_y = V[3];
-                */
-                double radius = Math.Sqrt(temp[0] > temp[1] ? temp[0] : temp[1]);
-                double scale = Gauss(u.Y * radius, v.Y * radius, kernel.lambda[0], kernel.lambda[3], kernel.lambda[1]);
-                scale = scale < 1.0 ? (1.0 / scale) : 1.0;
+                double[] V = new double[4];
+                double[] S = new double[4];
+                double[] lambda = used_kernels[j].lambda;
+                eigen(ref V, ref S, ref lambda);
 
+                double radius = Math.Sqrt(S[3]);
+                double scale = Gauss(V[2] * radius, V[3] * radius, lambda[0], lambda[3], lambda[1]);
+                scale = scale < 1.0 ? (1.0 / scale) : 1.0;
+                used_kernels[j].lambda[0] = lambda[0];
+                used_kernels[j].lambda[1] = lambda[1];
+                used_kernels[j].lambda[2] = lambda[2];
+                used_kernels[j].lambda[3] = lambda[3];
                 if (kernels_scale < scale)
                 {
                     kernels_scale = scale;
@@ -731,8 +1078,8 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     if (accumulator.bins[i, j] != 0)
                     {
-                        used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
-                        //used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i,j])));
+                        //used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
+                        used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i, j])));
                     }
                 }
             }
@@ -750,10 +1097,11 @@ namespace ImageProcessingCPU.Algorithms
                 }
                 visited.set_visited(bin.rho_index, bin.theta_index);
             }
+
         }
         public void DrawLines(List<Line> lines, int lineWidth)
         {
-            Point c = new Point(actual.Width / 2, actual.Height / 2);
+            //Point c = new Point(actual.Width / 2, actual.Height / 2);
             int count = 0;
             foreach (Line l in lines)
             {
@@ -769,11 +1117,6 @@ namespace ImageProcessingCPU.Algorithms
                 PointF p1 = new Point();
                 PointF p2 = new Point();
 
-                // Convert from KHT to OpenCV window coordinate system conventions.
-                // The KHT implementation assumes row-major memory alignment for
-                // images. Also, it assumes that the origin of the image coordinate
-                // system is at the center of the image, with the x-axis growing to
-                // the right and the y-axis growing down.
                 if (sin_theta != 0)
                 {
                     p1.X = -actual.Width / 2.0f;
@@ -784,30 +1127,68 @@ namespace ImageProcessingCPU.Algorithms
                 else
                 {
                     p1.X = (float)rho;
-                    p1.Y = -actual.Height / 2.0f;
+                    p1.Y = -actual.Height;
                     p2.X = (float)rho;
-                    p2.Y = actual.Height / 2.0f - 1;
+                    p2.Y = (float)actual.Height * 0.5f - 1;
                 }
-                p1.X += actual.Width / 2.0f;
-                p1.Y += actual.Height / 2.0f;
-                p2.X += actual.Width / 2.0f;
-                p2.Y += actual.Height / 2.0f;
+                p1.X += actual.Width * 0.5f;
+                p1.Y += actual.Height * 0.5f;
+                p2.X += actual.Width * 0.5f;
+                p2.Y += actual.Height * 0.5f;
                 //Point p = new Point((int)(l.rho * Math.Cos(l.theta)), (int)(l.rho * Math.Sin(l.theta)));
                 //g.DrawLine(yPen, new Point(p.Y,p.X), p);
+                PointF[] niz = { p1, p2 };
                 g.DrawLine(yPen, p1, p2);
+                //g.DrawCurve(yPen, niz);
 
 
             }
-
         }
         public Image Apply(ref Image x)
         {
             accumulator = new Accumulator(x.Width, x.Height, delta);
-            Find_chains(x.Width, x.Height, cluster_min_size);
+            Find_chains();
             Find_clusters();
+            //printing clusters for testing purposes
+            /*
+            Random r = new Random();
+            foreach (LinkedList<Pixel> l in clusters)
+            {
+                Color t = Color.FromArgb((byte)r.Next(0, 255), (byte)r.Next(0, 255), (byte)r.Next(0, 255));
+                foreach (Pixel p in l)
+                {
+                    actual.SetPixel(p.x, p.y, t);
+                }
+            }
+            */
 
             Voting(kernel_min_height);
             Peak_detection();
+            /*
+            foreach(Line li in lines)
+            {
+                double rUp = li.rho * 1.2;
+                double rDown = li.rho * 0.8;
+                double tUp = li.theta * 1.2;
+                double tDown = li.theta * 0.8;
+                foreach (Kernel k in used_kernels)
+                {
+                    if (rDown < k.rho && k.rho < rUp && tDown < k.theta && k.theta < tUp)
+                    {
+                        Color t = Color.Red;
+                        foreach (Pixel p in k.cluster)
+                        {
+                            actual.SetPixel(p.x, p.y, t);
+                        }
+
+                        //var p1 = k.cluster.First.Value;
+                        //var p2 = k.cluster.Last.Value;
+                        //g.DrawLine(new Pen(Color.Red, 2), p1.x, p1.y, p2.x, p2.y);
+                        
+                    }
+                }
+            }
+            */
             DrawLines(lines, 1);
             return actual;
         }

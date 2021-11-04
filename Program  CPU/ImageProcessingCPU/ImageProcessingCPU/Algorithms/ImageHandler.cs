@@ -109,14 +109,14 @@ namespace ImageProcessingCPU
             Refresh();
             return preview;
         }
-        public static Image Edge_effect(int c)
+        public static Image Edge_effect(int c, bool blur)
         {
             if (!Check())
             {
                 return null;
             }
             using Canny x = new Canny(c, 0.1, 0.3);
-            temporary = x.EdgeEffect(temporary);
+            temporary = x.EdgeEffect(temporary, blur);
             Refresh();
             return preview;
         }
@@ -126,7 +126,7 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            using HoughTransform x = new HoughTransform(ref temporary);
+            using HoughTransform x = new HoughTransform(ref temporary,2,0.5,0.01,2);
             x.Apply(ref temporary);
             Refresh();
             return preview;

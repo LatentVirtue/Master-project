@@ -39,7 +39,7 @@ namespace ImageProcessingCPU
 
         private void button1_Click(object sender, EventArgs e)
         {
-            MainBox.Image = ImageHandler.Edge_effect(canny_choice);
+            MainBox.Image = ImageHandler.Edge_effect(canny_choice, checkBlur.Checked);
             //MessageBox.Show(ImageHandler.Temporary.PixelFormat.ToString(), "PixelFormat: ", MessageBoxButtons.OK);
         }
 
@@ -79,6 +79,11 @@ namespace ImageProcessingCPU
         private void textBoxUpperT_TextChanged(object sender, EventArgs e)
         {
             upperT = double.Parse(textBoxUpperT.Text);
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
