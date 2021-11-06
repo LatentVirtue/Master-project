@@ -72,10 +72,14 @@ namespace ImageProcessingCPU.Algorithms
         static double upperT;
 
         //ILGPU context and accelerator
-        static void GrayscaleKernel(Index2 position, ArrayView2D<TroupleDouble> actual)
+        /*static void GrayscaleKernel(Index2 position, ArrayView2D<TroupleDouble> actual)
         {
             double y = (actual[position].D1 * 0.2126 + actual[position].D2 * 0.7152 + actual[position].D3 * 0.0722);
             actual[position].D1 = y <= 0.0031308 ? y * 12.92 : 1.055 * XMath.Pow(y, 1 / 2.4) - 0.055;
+        }*/
+        static void GrayscaleKernel(Index2 position, ArrayView2D<TroupleDouble> actual)
+        {
+            actual[position].D1 = (actual[position].D1 + actual[position].D2 + actual[position].D3) / 3.0;
         }
         static void GrayscaleKernel2(Index2 position, ArrayView2D<TroupleDouble> actual)
         {

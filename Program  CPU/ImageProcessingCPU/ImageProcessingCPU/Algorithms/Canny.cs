@@ -561,31 +561,40 @@ namespace ImageProcessingCPU.Algorithms
             actual = ReconstructFromGradient();
             return actual;
         }
-        public bool[,] matrixDirect(ref Bitmap x)
+        public bool[,] matrixDirect(ref Bitmap x, bool u)
         {
             if (x == null)
             {
                 return null;
             }
-            actual = x;
+            if(u)
+            {
+                bool[,] t = new bool[x.Height, x.Width];
+                for (int i = 0; i < x.Height; i++)
+                {
+                    for (int j = 0; j < x.Width; j++)
+                    {
+                        Color temp = x.GetPixel(j, i);
+                        t[i, j] = temp.R > 0 || temp.G > 0 || temp.B > 0;
+                    }
+                }
+                return t;
+            }
             //ToGrayscale();
             //GaussianFilter();
             //GradientGPU();
             //NonMaxSuppression();
             //DoubleThreshold();
-            if(label == null)
+            CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[x.Height, x.Width];
+            for (int i = 0; i < x.Height; i++)
             {
-                CannyGPU.TroupleDouble[,] target = new CannyGPU.TroupleDouble[actual.Height, actual.Width];
-                for (int i = 0; i < actual.Height; i++)
+                for (int j = 0; j < x.Width; j++)
                 {
-                    for (int j = 0; j < actual.Width; j++)
-                    {
-                        target[i, j] = new CannyGPU.TroupleDouble(actual.GetPixel(j, i));
-                    }
+                    target[i, j] = new CannyGPU.TroupleDouble(x.GetPixel(j, i));
                 }
-                label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
-                Hysteresis();
             }
+            label = CannyGPU.ApplyAll(selectedKernel, target, lowerT, upperT);
+            Hysteresis();
             bool[,] ret = new bool[label.GetLength(0), label.GetLength(1)];
             for (int i = 0; i < label.GetLength(0); i++)
             {

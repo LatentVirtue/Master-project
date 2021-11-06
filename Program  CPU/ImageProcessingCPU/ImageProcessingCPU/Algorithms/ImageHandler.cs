@@ -10,6 +10,9 @@ namespace ImageProcessingCPU
 {
     class ImageHandler
     {
+        public static int HoughNLines = 15;
+        static bool canny = false;
+        bool hough;
         static Image original;
         static Image temporary;
         public static Image Temporary
@@ -67,6 +70,7 @@ namespace ImageProcessingCPU
             factory.Load(temporary);
             factory.Resize(new Size(700, 400));
             preview = factory.Image;
+            canny = false;
         }
         public static bool Check()
         {
@@ -105,8 +109,9 @@ namespace ImageProcessingCPU
                 return null;
             }
             using Canny x = new Canny(c, lT, uT);
-            temporary = x.Apply(temporary);
+            temporary = x.Apply(original);
             Refresh();
+            canny = true;
             return preview;
         }
         public static Image Edge_effect(int c, bool blur)
@@ -116,7 +121,7 @@ namespace ImageProcessingCPU
                 return null;
             }
             using Canny x = new Canny(c, 0.1, 0.3);
-            temporary = x.EdgeEffect(temporary, blur);
+            temporary = x.EdgeEffect(original, blur);
             Refresh();
             return preview;
         }
@@ -126,8 +131,23 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            using HoughTransform x = new HoughTransform(ref temporary,2,0.5,0.01,2);
-            x.Apply(ref temporary);
+            
+            if (canny)
+            {
+                factory.Load(temporary);
+                
+            }
+            else
+            {
+                factory.Load(original);
+            }
+            if(original.Width != original.Height)
+            {
+                int n = factory.Image.Height < factory.Image.Width ? factory.Image.Height : factory.Image.Width;
+                temporary = factory.Crop(new Rectangle(0, 0, n, n)).Image;
+            }
+            using HoughTransform x = new HoughTransform(temporary, canny, 2, 0.5, 0.01, 3, HoughNLines);
+            temporary = x.Apply(temporary);
             Refresh();
             return preview;
         }

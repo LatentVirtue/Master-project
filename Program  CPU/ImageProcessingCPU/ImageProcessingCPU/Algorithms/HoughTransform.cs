@@ -79,7 +79,7 @@ namespace ImageProcessingCPU.Algorithms
         public double[] m_theta;
         public double thetaboundsLow = 0;
         public double thetaboundsHigh= 0;
-        public double[,] bins;
+        public int[,] bins;
         public Accumulator(int image_width = 0, int image_height = 0, double delta = 0)
         {
             init(image_width, image_height, delta);
@@ -116,7 +116,7 @@ namespace ImageProcessingCPU.Algorithms
                 m_theta[m_height + 1] = m_theta[1];
                 thetaboundsLow = 0.0;
                 thetaboundsHigh = 180 - delta;
-                bins = new double[m_height + 2, m_width + 2];
+                bins = new int[m_height + 2, m_width + 2];
             }
         }
     }
@@ -190,8 +190,9 @@ namespace ImageProcessingCPU.Algorithms
         // Specifies the size of allocated storage for the map (theta dimention).
         int m_theta_capacity;
     }
-    class HoughTransform : IAlgoInterface, IDisposable
+    class HoughTransform : IDisposable
     {
+        int Noflines;
         Graphics g;
         Canny cannyEdge = new Canny(0, 0.1, 0.3);
         Bitmap actual;
@@ -207,22 +208,16 @@ namespace ImageProcessingCPU.Algorithms
         Accumulator accumulator;
         List<Line> lines = new List<Line>();
         List<Kernel> used_kernels;
-        public HoughTransform(ref Image a, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 2, Graphics gg = null)
+        public HoughTransform( Image a, bool canny = false, double cluster_min_deviation = 2.0, double delta = 0.5, double kernel_min_height = 0.01, double n_sigmas = 2, int NumberOfLines = 15)
         {
             actual = (Bitmap)a;
-            if (gg == null)
-            {
-                g = Graphics.FromImage(actual);
-            }
-            else
-            {
-                g = gg;
-            }
+            g = Graphics.FromImage(actual);
             this.cluster_min_deviation = cluster_min_deviation;
             this.delta = delta;
             this.kernel_min_height = kernel_min_height;
             this.n_sigmas = n_sigmas;
-            m = cannyEdge.matrixDirect(ref actual);
+            m = cannyEdge.matrixDirect(ref actual, canny);
+            Noflines = NumberOfLines;
         }
         public void Dispose()
         {
@@ -288,10 +283,10 @@ namespace ImageProcessingCPU.Algorithms
             for (int i = 0; i != 8; ++i)
             {
                 int x = x_seed + X_OFFSET[i];
-                if (0 <= x && x < actual.Width)
+                if (0 <= x && x < actual.Height)
                 {
                     int y = y_seed + Y_OFFSET[i];
-                    if (0 <= y && y < actual.Height)
+                    if (0 <= y && y < actual.Width)
                     {
                         if (m[x, y])
                         {
@@ -333,9 +328,9 @@ namespace ImageProcessingCPU.Algorithms
 
         void Find_chains()
         {
-            for (int y = 1, y_end = actual.Height - 1; y != y_end; ++y)
+            for (int y = 1, y_end = actual.Width - 1; y != y_end; ++y)
             {
-                for (int x = 1, x_end = actual.Width - 1; x != x_end; ++x)
+                for (int x = 1, x_end = actual.Height - 1; x != x_end; ++x)
                 {
                     if (m[x, y])
                     {
@@ -859,9 +854,9 @@ namespace ImageProcessingCPU.Algorithms
         {
             return new Vector2((float)(-(m[0, 1]) / (m[0, 0] - eV)), 1);
         }
-        int convolution(ref double[,] bins, int rho_index, int theta_index)
+        int convolution(ref int[,] bins, int rho_index, int theta_index)
         {
-            double t = 0;
+            /*double t = 0;
             long offset = -1;
             int n = bins.GetLength(0);
             int m = bins.GetLength(1);
@@ -892,7 +887,10 @@ namespace ImageProcessingCPU.Algorithms
                     t += gaussKernel[i, j] * tt;
                 }
             }
-            return (int)Math.Round(t);
+            return (int)Math.Round(t);*/
+            return bins[theta_index - 1,rho_index - 1] + bins[theta_index - 1,rho_index + 1] + bins[theta_index + 1,rho_index - 1] + bins[theta_index + 1,rho_index + 1] +
+                   bins[theta_index - 1,rho_index] + bins[theta_index - 1,rho_index] + bins[theta_index,rho_index - 1] + bins[theta_index,rho_index - 1] + bins[theta_index,rho_index + 1] + bins[theta_index,rho_index + 1] + bins[theta_index + 1,rho_index] + bins[theta_index + 1,rho_index] +
+                   bins[theta_index,rho_index] + bins[theta_index,rho_index] + bins[theta_index,rho_index] + bins[theta_index,rho_index];
         }
         //3. Vote for kernels with bigger contributions
         //3.a culling
@@ -1078,8 +1076,8 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     if (accumulator.bins[i, j] != 0)
                     {
-                        //used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
-                        used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i, j])));
+                        used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
+                        //used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i, j])));
                     }
                 }
             }
@@ -1099,13 +1097,13 @@ namespace ImageProcessingCPU.Algorithms
             }
 
         }
-        public void DrawLines(List<Line> lines, int lineWidth)
+        public void DrawLines( int lineWidth)
         {
             //Point c = new Point(actual.Width / 2, actual.Height / 2);
             int count = 0;
             foreach (Line l in lines)
             {
-                if (count >= 25)
+                if (count >= Noflines)
                 {
                     break;
                 }
@@ -1144,7 +1142,7 @@ namespace ImageProcessingCPU.Algorithms
 
             }
         }
-        public Image Apply(ref Image x)
+        public Image Apply(Image x)
         {
             accumulator = new Accumulator(x.Width, x.Height, delta);
             Find_chains();
@@ -1189,7 +1187,7 @@ namespace ImageProcessingCPU.Algorithms
                 }
             }
             */
-            DrawLines(lines, 1);
+            DrawLines(1);
             return actual;
         }
     }

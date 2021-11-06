@@ -85,5 +85,17 @@ namespace ImageProcessingCPU
         {
 
         }
+
+        private void textBoxNLines_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                ImageHandler.HoughNLines = int.Parse(textBoxNLines.Text);
+            }
+            catch
+            {
+                ImageHandler.HoughNLines = 15;
+            }
+        }
     }
 }

@@ -43,6 +43,8 @@ namespace ImageProcessingCPU
             this.textBoxLowerT = new System.Windows.Forms.TextBox();
             this.textBoxUpperT = new System.Windows.Forms.TextBox();
             this.checkBlur = new System.Windows.Forms.CheckBox();
+            this.textBoxNLines = new System.Windows.Forms.TextBox();
+            this.label4 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.MainBox)).BeginInit();
             this.SuspendLayout();
             // 
@@ -184,11 +186,32 @@ namespace ImageProcessingCPU
             this.checkBlur.UseVisualStyleBackColor = true;
             this.checkBlur.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 
+            // textBoxNLines
+            // 
+            this.textBoxNLines.Location = new System.Drawing.Point(718, 223);
+            this.textBoxNLines.MaxLength = 5;
+            this.textBoxNLines.Name = "textBoxNLines";
+            this.textBoxNLines.Size = new System.Drawing.Size(31, 23);
+            this.textBoxNLines.TabIndex = 14;
+            this.textBoxNLines.Text = "15";
+            this.textBoxNLines.TextChanged += new System.EventHandler(this.textBoxNLines_TextChanged);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(718, 205);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(81, 15);
+            this.label4.TabIndex = 15;
+            this.label4.Text = "Num. of Lines";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(799, 450);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.textBoxNLines);
             this.Controls.Add(this.checkBlur);
             this.Controls.Add(this.textBoxUpperT);
             this.Controls.Add(this.textBoxLowerT);
@@ -228,6 +251,8 @@ namespace ImageProcessingCPU
         private System.Windows.Forms.TextBox textBoxLowerT;
         private System.Windows.Forms.TextBox textBoxUpperT;
         private System.Windows.Forms.CheckBox checkBlur;
+        private System.Windows.Forms.TextBox textBoxNLines;
+        private System.Windows.Forms.Label label4;
     }
 }
 
