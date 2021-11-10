@@ -146,7 +146,7 @@ namespace ImageProcessingCPU
                 int n = factory.Image.Height < factory.Image.Width ? factory.Image.Height : factory.Image.Width;
                 temporary = factory.Crop(new Rectangle(0, 0, n, n)).Image;
             }
-            using HoughTransform x = new HoughTransform(temporary, canny, 2, 0.5, 0.01, 3, HoughNLines);
+            using HoughTransform x = new HoughTransform(temporary, canny, 2, 0.5, 0.01, 2, HoughNLines);
             temporary = x.Apply(temporary);
             Refresh();
             return preview;

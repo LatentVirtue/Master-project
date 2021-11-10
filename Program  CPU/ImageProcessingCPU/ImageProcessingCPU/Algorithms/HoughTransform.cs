@@ -1067,7 +1067,7 @@ namespace ImageProcessingCPU.Algorithms
         }
         void Peak_detection()
         {
-            // Create a list with all cells that receive at least one vote.
+            // Create a list with all cells that have received at least one vote.
             List<Bin> used_bins = new List<Bin>();
 
             for (int i = 0; i < accumulator.m_height; i++)
@@ -1076,8 +1076,8 @@ namespace ImageProcessingCPU.Algorithms
                 {
                     if (accumulator.bins[i, j] != 0)
                     {
-                        used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Convolution of the cells with a 3x3 Gaussian kernel
-                        //used_bins.Add(new Bin(j, i, (int)Math.Round(accumulator.bins[i, j])));
+                        used_bins.Add(new Bin(j, i, convolution(ref accumulator.bins, j, i))); // Filtering the cells with a 3x3 Gaussian kernel
+                        //used_bins.Add(new Bin(j, i, accumulator.bins[i, j]));
                     }
                 }
             }
