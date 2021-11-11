@@ -403,16 +403,22 @@ namespace ImageProcessingCPU.Algorithms
                     {
                         if (label[i, j] % 10 > 0)
                         {
-                            /*
+                            
                             //test coloring
-                            if(label[i,j]%10 > 1)
+                            /*
+                            if(label[i,j] <20 && label[i,j]%10 > 1)
                             {
                                 res.SetPixel(j, i, Color.White);
+                            }
+                            else if(label[i,j] < 20)
+                            {
+                                res.SetPixel(j, i, Color.Green);
                             }
                             else
                             {
                                 res.SetPixel(j, i, Color.Red);
-                            }*/
+                            }
+                            */
                             res.SetPixel(j, i, Color.White);
                         }
                         else
@@ -528,6 +534,12 @@ namespace ImageProcessingCPU.Algorithms
                             if (!h.hasStrong || h.body.Count == 1)
                             {
                                 h.MutuallyAssuredDestruction(ref label);
+                                /*
+                                foreach (Point p in h.body)
+                                {
+                                    label[p.X, p.Y] += 20;
+                                }
+                                */
                             }
                         }
                     }

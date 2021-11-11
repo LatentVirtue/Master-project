@@ -97,5 +97,10 @@ namespace ImageProcessingCPU
                 ImageHandler.HoughNLines = 15;
             }
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            MainBox.Image = ImageHandler.Convolve();
+        }
     }
 }

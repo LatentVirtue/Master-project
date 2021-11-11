@@ -131,17 +131,17 @@ namespace ImageProcessingCPU
             {
                 return null;
             }
-            
+
             if (canny)
             {
                 factory.Load(temporary);
-                
+
             }
             else
             {
                 factory.Load(original);
             }
-            if(original.Width != original.Height)
+            if (original.Width != original.Height)
             {
                 int n = factory.Image.Height < factory.Image.Width ? factory.Image.Height : factory.Image.Width;
                 bool u = factory.Image.Height < factory.Image.Width;
@@ -159,6 +159,66 @@ namespace ImageProcessingCPU
             }
             using HoughTransform x = new HoughTransform(temporary, canny, 2, 0.5, 0.01, 2, HoughNLines);
             temporary = x.Apply(temporary);
+            Refresh();
+            return preview;
+        }
+        public static Image Convolve()
+        {
+            if (!Check())
+            {
+                return null;
+            }
+            Bitmap target = new Bitmap(temporary);
+            Bitmap res = new Bitmap(target.Width,target.Height);
+            //int[,] filter = { { -2, -1, 0 }, { -1, 1, 1 }, { 0, 1, 2 } }; //emboss
+            //int[,] filter = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } }; //nabla fy
+            int[,] filter = { { 1, 2, 1 }, { 2, 4, 2 }, { 1, 2, 1 } }; //blur
+            int fsum = 0;
+            for (int i = 0; i < filter.GetLength(0); i++)
+            {
+                for (int j = 0; j < filter.GetLength(1); j++)
+                {
+                    fsum += filter[i, j];
+                }
+            }
+            if (fsum == 0)
+            {
+                fsum = 1;
+            }
+            for (int i = 0; i < target.Height; i++)
+            {
+                for (int j = 0; j < target.Width; j++)
+                {
+                    //here
+                    int sumR = 0;
+                    int sumG = 0;
+                    int sumB = 0;
+                    int offX = (filter.GetLength(0) - 1) / -2;
+                    int offY = (filter.GetLength(1) - 1) / -2;
+                    for (int a = filter.GetLength(0) - 1; a >= 0; a--)
+                    {
+                        for (int b = filter.GetLength(1) - 1; b >= 0; b--)
+                        {
+                            int ci = i + offY + a;
+                            int cj = j + offX + b;
+                            Color t;
+                            if (ci < 0 || ci >= target.Height || cj < 0 || cj >= target.Width)
+                            {
+                                t = target.GetPixel(j, i);
+                            }
+                            else
+                            {
+                                t = target.GetPixel(cj, ci);
+                            }
+                            sumR += (t.R * filter[a, b]) / fsum;
+                            sumG += (t.G * filter[a, b]) / fsum;
+                            sumB += (t.B * filter[a, b]) / fsum;
+                        }
+                    }
+                    res.SetPixel(j, i, Color.FromArgb(255, Math.Clamp(sumR, 0, 255), Math.Clamp(sumG, 0, 255), Math.Clamp(sumB, 0, 255)));
+                }
+            }
+            temporary = res;
             Refresh();
             return preview;
         }
