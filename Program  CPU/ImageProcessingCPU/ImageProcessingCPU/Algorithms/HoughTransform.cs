@@ -197,7 +197,7 @@ namespace ImageProcessingCPU.Algorithms
         Canny cannyEdge = new Canny(0, 0.1, 0.3);
         Bitmap actual;
         bool[,] m;
-        int cluster_min_size = 5;
+        int cluster_min_size = 10;
         readonly double cluster_min_deviation;
         readonly double delta;
         readonly double kernel_min_height;

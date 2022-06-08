@@ -157,7 +157,7 @@ namespace ImageProcessingCPU
                 }
                 temporary = factory.Crop(new Rectangle(sx, sy, n, n)).Image;
             }
-            using HoughTransform x = new HoughTransform(temporary, canny, 2, 0.5, 0.01, 2, HoughNLines);
+            using HoughTransform x = new HoughTransform(temporary, canny, 3, 0.5, 0.01, 2, HoughNLines);
             temporary = x.Apply(temporary);
             Refresh();
             return preview;
